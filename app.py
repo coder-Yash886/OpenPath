@@ -28,18 +28,46 @@ SAMPLE_REPOS = [
 ]
 
 # ==========================================
-# Helper Functions
+# Helper Functions & .env Loader
 # ==========================================
+def load_dotenv_file(filepath=".env"):
+    """Load key-value pairs from .env into os.environ."""
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip("'").strip('"')
+                        if k:
+                            os.environ[k] = v
+        except Exception:
+            pass
+
+# Load .env variables immediately
+load_dotenv_file()
+
 def secret(name, default=""):
-    """Fetch secret from Streamlit secrets, environment, or session state."""
+    """Fetch secret from session state, .streamlit/secrets, or .env."""
     if f"ui_{name}" in st.session_state and st.session_state[f"ui_{name}"]:
-        return st.session_state[f"ui_{name}"]
+        val = str(st.session_state[f"ui_{name}"]).strip()
+        if val and val != "your_key_here":
+            return val
     try:
         if name in st.secrets:
-            return st.secrets[name]
+            val = str(st.secrets[name]).strip()
+            if val and val != "your_key_here":
+                return val
     except Exception:
         pass
-    return os.getenv(name, default)
+    val = os.getenv(name, default)
+    if isinstance(val, str):
+        val = val.strip()
+        if val and val != "your_key_here":
+            return val
+    return default
 
 def gh_get(path, params=None):
     """Make authenticated or unauthenticated GET request to GitHub API."""
