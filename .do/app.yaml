@@ -1,0 +1,42 @@
+name: openpath-repoguide
+region: blr  # Bangalore — closest to India
+
+services:
+  - name: repoguide-web
+    source_dir: /
+    github:
+      repo: coder-Yash886/OpenPath
+      branch: main
+      deploy_on_push: true
+    run_command: streamlit run app.py --server.port 8080 --server.address 0.0.0.0 --server.headless true
+    environment_slug: python
+    instance_count: 1
+    instance_size_slug: basic-xs   # Free tier eligible
+
+    envs:
+      # DigitalOcean Gradient AI — Serverless Inference
+      - key: DO_MODEL_ACCESS_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: "PASTE_YOUR_KEY_HERE"
+
+      - key: DO_MODEL_ID
+        scope: RUN_TIME
+        value: "alibaba-qwen3-32b"
+
+      - key: DO_BASE_URL
+        scope: RUN_TIME
+        value: "https://inference.do-ai.run/v1"
+
+      # GitHub Token — optional, lifts rate limit 60→5000 req/hr
+      - key: GITHUB_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+        value: ""
+
+    http_port: 8080
+    routes:
+      - path: /
+
+alerts:
+  - rule: DEPLOYMENT_FAILED

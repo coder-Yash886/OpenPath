@@ -283,18 +283,447 @@ A bird's-eye architectural map of where components live:
 ## Where to start contributing
 {contrib_text}"""
 
+def audit_readme(readme, paths):
+    """Analyze README completeness, score it, and identify missing sections."""
+    if not readme or len(readme.strip()) < 40:
+        return {
+            "exists": False,
+            "score": 10,
+            "length": len(readme) if readme else 0,
+            "present": ["Basic Source Code Files"],
+            "missing": [
+                "Problem Statement",
+                "Solution & Value Proposition",
+                "Features List",
+                "System Architecture Diagram",
+                "Tech Stack Breakdown",
+                "Local Setup & Quickstart",
+                "Deployment Strategy (DigitalOcean / Docker)",
+                "Contributing Guidelines",
+                "License & Badges"
+            ]
+        }
+    
+    low = readme.lower()
+    score = 20
+    present = ["README.md File Detected"]
+    missing = []
+    
+    checks = [
+        ("Problem Statement & Overview", any(w in low for w in ["problem", "overview", "about", "why", "motivation", "background"]), 10),
+        ("Features Breakdown", any(w in low for w in ["feature", "capabilities", "what it does", "highlights"]), 15),
+        ("Quickstart & Installation", any(w in low for w in ["install", "setup", "quickstart", "getting started", "run locally", "usage"]), 20),
+        ("System Architecture & Diagram", any(w in low for w in ["architecture", "system design", "workflow", "diagram", "mermaid", "flowchart"]), 15),
+        ("Tech Stack Details", any(w in low for w in ["tech stack", "dependencies", "built with", "technologies", "prerequisites"]), 10),
+        ("Deployment Strategy", any(w in low for w in ["deploy", "docker", "production", "hosting", "digitalocean", "app platform"]), 10),
+        ("Contributing Guidelines", any(w in low for w in ["contribut", "pull request", "pr guidelines", "how to contribute"]), 10),
+        ("Badges & License", any(w in low for w in ["license", "badge", "shields.io", "mit license"]), 10),
+    ]
+    
+    for name, found, weight in checks:
+        if found:
+            score += weight
+            present.append(name)
+        else:
+            missing.append(name)
+            
+    score = min(100, score)
+    return {
+        "exists": True,
+        "score": score,
+        "length": len(readme),
+        "present": present,
+        "missing": missing
+    }
+
+def generate_smart_deep_architecture(info, readme, paths, issues, lang):
+    """Generate comprehensive architecture, system design, problem statement, solution, userflow, and deployment plan."""
+    repo_name = info.get('name', 'Project')
+    full_name = info.get('full_name', repo_name)
+    desc = info.get('description') or f"Open-source modular software project built with {info.get('language', 'modern technologies')}."
+    lang_name = info.get('language') or 'General'
+    
+    tree_categories = classify_file_tree(paths)
+    source_files = tree_categories["Source & Logic"]
+    config_files = tree_categories["Configuration & Build"]
+    test_files = tree_categories["Tests & Quality"]
+    
+    # Infer entry point and key modules
+    entry_point = "main.py"
+    if any(p.lower().endswith(("app.py", "main.py", "index.js", "index.ts", "server.js", "main.go")) for p in source_files):
+        entry_point = next(p for p in source_files if p.lower().endswith(("app.py", "main.py", "index.js", "index.ts", "server.js", "main.go")))
+    elif source_files:
+        entry_point = source_files[0]
+        
+    # Framework detection
+    framework = "Custom Engine"
+    lower_paths = [p.lower() for p in paths]
+    if any("fastapi" in p for p in lower_paths) or any("fastapi" in readme.lower() for _ in [1]):
+        framework = "FastAPI (High-performance Async Python)"
+    elif any("flask" in p for p in lower_paths) or any("flask" in readme.lower() for _ in [1]):
+        framework = "Flask (WSGI Web Microframework)"
+    elif any("streamlit" in p for p in lower_paths) or any("streamlit" in readme.lower() for _ in [1]):
+        framework = "Streamlit (Modern Interactive Web Application)"
+    elif any("react" in p for p in lower_paths) or any("next" in p for p in lower_paths):
+        framework = "React / Next.js (Modern Frontend Framework)"
+    elif any("docker" in p for p in lower_paths):
+        framework = f"Containerized {lang_name} Engine"
+    else:
+        framework = f"{lang_name} Modular Architecture"
+
+    # Problem & Solution
+    if lang == "Hinglish":
+        problem_text = f"Developers aur users ko **{desc}** accomplish karne mein manual effort, complex configuration, aur unstandardized workflows ka saamna karna padta tha. Bina kisi dedicated modular pipeline ke, codebase maintain karna aur efficiently scale karna challenging hota hai."
+        solution_text = f"**{repo_name}** ek structured, lightweight aur developer-friendly architecture provide karta hai. Yeh **{lang_name}** aur modern design patterns use karke task execution ko automate karta hai, modular components ke zariye code maintainability badhata hai aur reproducible execution ensure karta hai."
+        userflow_text = f"1. **User Request / CLI Trigger**: User CLI ya web interface ke zariye command initiate karta hai.\n2. **Configuration Loader**: System `{config_files[0] if config_files else 'environment config'}` se variables aur dependencies load karta hai.\n3. **Core Processing**: `{entry_point}` routing logic trigger karke request relevant module ko dispatch karta hai.\n4. **Execution & Validation**: Core functions task execute karte hain aur automated tests (`{test_files[0] if test_files else 'test suite'}`) validation provide karte hain.\n5. **Response Delivery**: Client ko final processed data, UI state ya output return hota hai."
+    elif lang == "Hindi":
+        problem_text = f"डेवलपर्स को **{desc}** के लिए जटिल कॉन्फ़िगरेशन और मैन्युअल सेटअप की आवश्यकता होती थी, जिससे समय और रिसोर्सेज नष्ट होते थे।"
+        solution_text = f"**{repo_name}** इस समस्या को हल करने के लिए **{lang_name}** आधारित एक आधुनिक, मॉड्यूलर और उच्च-प्रदर्शन समाधान प्रस्तुत करता है।"
+        userflow_text = f"1. **इनपुट**: डेवलपर या यूज़र सिस्टम में कमांड या रिक्वेस्ट भेजता है।\n2. **कॉन्फ़िगरेशन**: आवश्यक सेटिंग्स और डिपेंडेंसी लोड की जाती हैं।\n3. **प्रोसेसिंग**: `{entry_point}` द्वारा अनुरोध को संबंधित मॉड्यूल में प्रोसेस किया जाता है।\n4. **आउटपुट**: परिणाम सुरक्षित और तेजी से डिलीवर किया जाता है।"
+    else:
+        problem_text = f"Software teams and users attempting to address **{desc}** frequently face boilerplate overhead, non-standardized workflows, and maintenance friction. Scaling or onboarding without clear architectural boundaries leads to fragility and operational bottlenecks."
+        solution_text = f"**{repo_name}** delivers a clean, decoupled solution engineered in **{lang_name}**. By organizing logic into distinct modular boundaries, it abstracts complexity, ensures deterministic runtime execution, and enables straightforward extensibility."
+        userflow_text = f"1. **Client / User Initiation**: Developer or end-user triggers an execution or API call.\n2. **Environment & Dependency Bootstrap**: Configuration layers validate environment credentials and active runtime flags.\n3. **Execution Pipeline**: Request is handled via `{entry_point}`, orchestrating domain logic across internal modules.\n4. **Testing & Quality Assurance**: Verification hooks and test fixtures validate runtime stability.\n5. **Output / Response**: The processed result or user interface state is presented to the caller."
+
+    # Build valid Mermaid Diagram
+    mermaid_code = f"""graph TD
+    User([👤 User / Client]) --> Entry["🚪 Entrypoint: {entry_point}"]
+    Entry --> CoreRouter["🔀 Core Router & Controller"]
+    CoreRouter --> ModuleLogic["📦 Domain Logic & Services"]
+    CoreRouter --> Config["⚙️ Config & Env: {config_files[0] if config_files else 'Settings'}"]
+    ModuleLogic --> Tests["🧪 Verification: {test_files[0] if test_files else 'Unit Tests'}"]
+    ModuleLogic --> Output[📑 Output / State Response]
+    Output --> User
+    
+    style User fill:#ECFDF5,stroke:#10B981,stroke-width:2px;
+    style Entry fill:#FFFFFF,stroke:#E2E8F0,stroke-width:1.5px;
+    style CoreRouter fill:#EFF6FF,stroke:#3B82F6,stroke-width:1.5px;
+    style ModuleLogic fill:#F0FDF4,stroke:#16A34A,stroke-width:1.5px;
+    style Output fill:#FAF5FF,stroke:#9333EA,stroke-width:1.5px;"""
+
+    features_list = [
+        f"**Modular Architecture**: Clean separation between `{entry_point}` and functional subpackages.",
+        f"**Zero-Bloat Configuration**: Streamlined environment loading with `{config_files[0] if config_files else 'standard configs'}`.",
+        f"**Automated Verification**: Integrated test suites (`{len(test_files)}` test paths detected) guaranteeing regression prevention.",
+        f"**Modern {lang_name} Standards**: Leverages modern idioms and fast execution conventions.",
+        "**Cloud Native Ready**: Container-friendly structure designed for instant deployment on cloud app platforms."
+    ]
+    features_formatted = "\n".join(f"- {f}" for f in features_list)
+
+    return f"""## 🎯 Problem Statement It Solves
+{problem_text}
+
+---
+
+## 💡 Proposed Solution & Value Proposition
+{solution_text}
+
+---
+
+## ✨ Key Features & Capabilities
+{features_formatted}
+
+---
+
+## 🏗️ System Design & Modular Hierarchy
+The repository follows a clean, decoupled architectural pattern:
+- **Presentation / Interface Layer**: Handles input parameters, CLI flags, or web endpoints (`{entry_point}`).
+- **Domain & Business Logic**: Encapsulates core processing algorithms ({len(source_files)} source files detected).
+- **Configuration & Infrastructure**: Centralizes environment variables, build definitions, and secrets (`{', '.join(config_files[:3]) if config_files else 'Standard env'}`).
+- **Quality Assurance Layer**: Provides unit tests and regression fixtures ({len(test_files)} test files detected).
+
+---
+
+## 📊 System Architecture Diagram
+```mermaid
+{mermaid_code}
+```
+
+---
+
+## 🛠️ Technology Stack Breakdown
+| Component | Detected Technology | Role in System |
+| :--- | :--- | :--- |
+| **Primary Language** | `{lang_name}` | Core computational logic |
+| **Framework / Pattern** | `{framework}` | Application lifecycle & routing |
+| **Build & Dependencies** | `{config_files[0] if config_files else 'Standard packaging'}` | Dependency resolution |
+| **Testing Suite** | `{test_files[0] if test_files else 'Built-in tests'}` | Verification & stability |
+| **Deployment Engine** | `DigitalOcean App Platform / Docker` | Production hosting & scaling |
+
+---
+
+## 🔄 Runtime Workflow & Userflow
+{userflow_text}
+
+---
+
+## 🚀 Deployment Strategy & Hosting Recommendations
+### Recommended Platform: **DigitalOcean App Platform**
+1. **Repository Link**: Connect `https://github.com/{full_name}` to DigitalOcean App Platform.
+2. **Component Type**: Web Service / Worker.
+3. **Environment Variables**: Add all configuration variables present in `{config_files[0] if config_files else '.env'}`.
+4. **Port Configuration**: Expose port `8080` (or `8000` / `3000` depending on your entry point).
+5. **Auto Deploy**: Enable *Deploy on Push* so every commit to `main` automatically triggers zero-downtime rolling deploys.
+
+---
+
+## 💡 Maintainer Suggestions & Scaling Opportunities
+1. **CI/CD Automation**: Add a `.github/workflows/ci.yml` pipeline to run tests automatically on every Pull Request.
+2. **Docker Multi-Stage Build**: If deploying as a container, use a multi-stage Dockerfile to minimize image size and improve cold starts.
+3. **Caching Layer**: For intensive endpoints, integrate Redis or in-memory LRU caching.
+4. **API Documentation**: Ensure all functions have typed signatures and auto-generated OpenAPI / docstrings.
+"""
+
+def generate_smart_readme(info, readme, paths, issues, lang):
+    """Generate a 100% production-ready GitHub README.md complete with badges, architecture, and guides."""
+    repo_name = info.get('name', 'Project')
+    full_name = info.get('full_name', repo_name)
+    desc = info.get('description') or f"A modern open-source project built with {info.get('language', 'software engineering best practices')}."
+    lang_name = info.get('language') or 'General'
+    branch = info.get('default_branch', 'main')
+    
+    tree_categories = classify_file_tree(paths)
+    source_files = tree_categories["Source & Logic"]
+    config_files = tree_categories["Configuration & Build"]
+    test_files = tree_categories["Tests & Quality"]
+    
+    entry_point = "main.py"
+    if any(p.lower().endswith(("app.py", "main.py", "index.js", "index.ts", "server.js")) for p in source_files):
+        entry_point = next(p for p in source_files if p.lower().endswith(("app.py", "main.py", "index.js", "index.ts", "server.js")))
+    elif source_files:
+        entry_point = source_files[0]
+
+    # Generate setup commands
+    if "python" in lang_name.lower():
+        install_cmd = "python -m venv venv\nsource venv/bin/activate  # On Windows: venv\\Scripts\\activate\npip install -r requirements.txt"
+        run_cmd = f"python {entry_point}"
+    elif "javascript" in lang_name.lower() or "typescript" in lang_name.lower():
+        install_cmd = "npm install"
+        run_cmd = "npm run dev"
+    else:
+        install_cmd = "# Refer to build instructions for dependencies"
+        run_cmd = f"./{entry_point}"
+
+    mermaid_diagram = f"""graph TD
+    Client([👤 Client / User]) --> App["🚪 {entry_point}"]
+    App --> Core["⚙️ Core Domain Services"]
+    Core --> Config["📦 Config & Env"]
+    Core --> Tests["🧪 Automated Tests"]
+    Core --> Out([📑 Response / UI])"""
+
+    return f"""# {repo_name}
+
+> {desc}
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/{full_name}?style=flat&color=10B981)](https://github.com/{full_name}/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/{full_name}?style=flat&color=0284C7)](https://github.com/{full_name}/network)
+[![Language: {lang_name}](https://img.shields.io/badge/Language-{lang_name}-8B5CF6.svg)](https://github.com/{full_name})
+[![DigitalOcean Ready](https://img.shields.io/badge/Deploy-DigitalOcean-0080FF.svg)](https://cloud.digitalocean.com/apps)
+
+---
+
+## 📌 Problem Statement
+Many developers and teams working on modern applications encounter friction with manual configuration, missing architectural guidelines, and boilerplate overhead. Without a robust modular framework, maintainability suffers and onboarding new contributors becomes slow and intimidating.
+
+## 💡 Solution
+**{repo_name}** provides a clean, battle-tested solution engineered in **{lang_name}**. It abstracts common setup tasks, enforces modular separation of concerns, and delivers high-performance, deterministic execution out of the box.
+
+---
+
+## ✨ Key Features
+- **⚡ High Performance**: Optimized execution pipeline built with modern `{lang_name}` conventions.
+- **🧱 Modular Architecture**: Clean boundaries separating entry point `{entry_point}`, domain modules, and settings.
+- **🧪 Comprehensive Testing**: Built-in test fixtures ({len(test_files)} test paths detected) to ensure zero regressions.
+- **🌐 Cloud-Native Deployment**: Pre-configured for frictionless deployment to DigitalOcean App Platform and Docker.
+- **🤝 Beginner-Friendly Onboarding**: Thoroughly documented with step-by-step contribution workflows.
+
+---
+
+## 🏗️ System Architecture & Workflow
+
+```mermaid
+{mermaid_diagram}
+```
+
+### 🔄 Runtime Workflow & User Journey
+1. **Input & Trigger**: User initiates an interaction via CLI or web endpoint.
+2. **Environment Bootstrap**: Settings and configuration files are loaded into the runtime.
+3. **Core Processing**: `{entry_point}` orchestrates domain logic across internal modules.
+4. **Validation & Output**: The result is verified and delivered seamlessly to the user.
+
+---
+
+## 🛠️ Technology Stack
+| Layer | Technology | Details |
+| :--- | :--- | :--- |
+| **Primary Language** | `{lang_name}` | Core language runtime |
+| **Main Entrypoint** | `{entry_point}` | Application entry & routing |
+| **Dependencies & Build** | `{config_files[0] if config_files else 'Standard packaging'}` | Package specification |
+| **Test Framework** | `{test_files[0] if test_files else 'Unit tests'}` | Regression validation |
+| **Recommended Hosting** | `DigitalOcean App Platform` | Serverless / Container PaaS |
+
+---
+
+## 🚀 Quickstart & Local Setup
+
+### 1. Prerequisites
+- `{lang_name}` installed on your local machine.
+- `git` version control tool.
+
+### 2. Clone the Repository
+```bash
+git clone https://github.com/{full_name}.git
+cd {repo_name}
+```
+
+### 3. Install Dependencies
+```bash
+{install_cmd}
+```
+
+### 4. Run the Project
+```bash
+{run_cmd}
+```
+
+---
+
+## 🌐 Production Deployment
+
+### Deploy to DigitalOcean App Platform
+1. Fork or push your changes to GitHub.
+2. Log in to [DigitalOcean Cloud](https://cloud.digitalocean.com/apps) and click **Create App**.
+3. Select your GitHub repository: `{full_name}` (Branch: `{branch}`).
+4. DigitalOcean automatically detects the `{lang_name}` buildpack.
+5. Set your Run Command to `{run_cmd}` and configure HTTP Port (`8080`).
+6. Click **Deploy** to launch with automatic SSL and zero-downtime rolling deploys!
+
+---
+
+## 🤝 Contributing
+Contributions are what make open source an amazing place to learn and build!
+1. Fork the Project (`https://github.com/{full_name}/fork`)
+2. Create your Feature Branch (`git checkout -b feat/amazing-feature`)
+3. Commit your Changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the Branch (`git push origin feat/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📜 License
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+*Created with [RepoGuide](https://github.com/coder-Yash886/OpenPath) — Powered by DigitalOcean Gradient AI.*
+"""
+
+def generate_deep_architecture(info, readme, paths, issues, lang, api_key=None, model=None, base_url=None):
+    """Generate deep architecture using DigitalOcean Gradient AI, falling back to smart engine."""
+    if not api_key:
+        return generate_smart_deep_architecture(info, readme, paths, issues, lang)
+    
+    prompt = f"""You are a senior software architect and open-source mentor.
+Analyze this GitHub repository deeply and provide an architectural deep-dive in {lang}.
+
+Repo: {info.get('full_name')}
+Description: {info.get('description')}
+Language: {info.get('language')}
+
+README excerpt:
+{readme[:4000]}
+
+Files list (sample 150):
+{chr(10).join(paths[:150])}
+
+Output exact Markdown sections:
+## 🎯 Problem Statement It Solves
+(Detailed explanation of the real-world problem, user pain points, and why this repo is needed)
+
+## 💡 Proposed Solution & Value Proposition
+(How this codebase solves the problem, core architecture decisions, and value)
+
+## ✨ Key Features & Capabilities
+(4-6 key technical and user features)
+
+## 🏗️ System Design & Modular Hierarchy
+(Component hierarchy, layers, and how files interact)
+
+## 📊 System Architecture Diagram
+(Provide a clean, valid Mermaid graph TD diagram depicting components, entry point, data flow, and user)
+
+## 🛠️ Technology Stack Breakdown
+(Table of languages, frameworks, build tools, tests, and deployment)
+
+## 🔄 Runtime Workflow & Userflow
+(Step-by-step execution flow from user input to output)
+
+## 🚀 Deployment Strategy & Hosting Recommendations
+(Instructions for deploying on DigitalOcean App Platform or Docker container)
+
+## 💡 Maintainer Suggestions & Scaling Opportunities
+(3-5 concrete technical suggestions for scaling, security, caching, CI/CD)
+"""
+    try:
+        reply = ask_llm(prompt, model=model, base_url=base_url, api_key=api_key)
+        if reply and len(reply.strip()) > 100:
+            return reply
+    except Exception:
+        pass
+    return generate_smart_deep_architecture(info, readme, paths, issues, lang)
+
+def generate_production_readme(info, readme, paths, issues, lang, api_key=None, model=None, base_url=None):
+    """Generate a production-grade README.md using DigitalOcean Gradient AI, falling back to smart engine."""
+    if not api_key:
+        return generate_smart_readme(info, readme, paths, issues, lang)
+        
+    prompt = f"""You are an elite open-source documentation engineer.
+Generate a complete, production-grade GitHub README.md for this repository.
+It should be ready to be committed directly as README.md in the root of the repository.
+
+Repo: {info.get('full_name')}
+Description: {info.get('description')}
+Language: {info.get('language')}
+
+README excerpt (if any):
+{readme[:3000]}
+
+Files in repo:
+{chr(10).join(paths[:150])}
+
+Include:
+- Title, badges, and tagline
+- 📌 Problem Statement
+- 💡 Solution & Highlights
+- ✨ Core Features
+- 🏗️ System Architecture & Mermaid Diagram (graph TD)
+- 🔄 Runtime Workflow & User Journey
+- 🛠️ Tech Stack Table
+- 🚀 Quickstart & Local Setup commands
+- 🌐 Deployment Guide (DigitalOcean App Platform & Docker)
+- 🤝 Contributing Guidelines & Git Flow
+- 📜 License (MIT)
+"""
+    try:
+        reply = ask_llm(prompt, model=model, base_url=base_url, api_key=api_key)
+        if reply and len(reply.strip()) > 100:
+            return reply
+    except Exception:
+        pass
+    return generate_smart_readme(info, readme, paths, issues, lang)
+
 # ==========================================
 # Streamlit UI Configuration
 # ==========================================
 st.set_page_config(
-    page_title="RepoGuide — AI Open-Source Companion",
+    page_title="RepoGuide — Open-Source AI Companion",
     page_icon="🧭",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 # ==========================================
-# Premium Design System (RepoGuide + Clean Emerald Aesthetics)
+# Premium Design System (Plus Jakarta Sans + Emerald Theme)
 # ==========================================
 st.markdown("""
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -302,9 +731,17 @@ st.markdown("""
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
-    /* Smooth Scrolling for Anchor Links */
+    /* Smooth Scroll Behavior & Anchor Offsets */
     html {
         scroll-behavior: smooth !important;
+    }
+    [id] {
+        scroll-margin-top: 100px !important;
+    }
+
+    /* Remove default link underline and colors */
+    a, a:visited, a:active {
+        text-decoration: none !important;
     }
 
     /* Remove default Streamlit chrome */
@@ -315,7 +752,7 @@ st.markdown("""
     /* Layout Centering & Responsive Canvas */
     .block-container {
         max-width: 1140px !important;
-        padding-top: 1rem !important;
+        padding-top: 85px !important;
         padding-bottom: 4rem !important;
         margin: 0 auto !important;
     }
@@ -324,86 +761,112 @@ st.markdown("""
     html, body, [class*="css"], .stApp {
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
         background-color: #FFFFFF !important;
-        background-image: radial-gradient(circle at 10% 12%, rgba(16, 185, 129, 0.08) 0%, transparent 40%), radial-gradient(circle at 90% 85%, rgba(16, 185, 129, 0.04) 0%, transparent 35%) !important;
+        background-image: radial-gradient(circle at 10% 8%, rgba(16, 185, 129, 0.08) 0%, transparent 40%), radial-gradient(circle at 90% 75%, rgba(16, 185, 129, 0.04) 0%, transparent 35%) !important;
         background-attachment: fixed !important;
         color: #0F172A !important;
     }
 
-    /* Top Navigation Bar */
-    .top-navbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 14px 0 22px 0;
-        border-bottom: 1px solid #F1F5F9;
-        margin-bottom: 30px;
+    /* Fixed Floating Glassmorphic Top Navbar */
+    .top-sticky-nav {
+        position: fixed !important;
+        top: 12px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: min(1140px, calc(100% - 32px)) !important;
+        z-index: 999999 !important;
+        background: rgba(255, 255, 255, 0.95) !important;
+        backdrop-filter: blur(14px) !important;
+        -webkit-backdrop-filter: blur(14px) !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 16px !important;
+        padding: 12px 24px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08) !important;
     }
     .nav-brand {
         display: flex;
         align-items: center;
         gap: 10px;
-        font-size: 1.3rem;
-        font-weight: 800;
-        color: #0F172A;
-        text-decoration: none;
+        text-decoration: none !important;
     }
     .brand-logo-icon {
-        width: 34px;
-        height: 34px;
+        width: 36px;
+        height: 36px;
         background: #10B981;
-        border-radius: 9px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #FFFFFF;
-        font-size: 19px;
+        font-size: 20px;
         box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
     .nav-links {
         display: flex;
         align-items: center;
-        gap: 28px;
+        gap: 20px;
     }
-    .nav-item {
-        color: #475569;
-        font-size: 0.94rem;
-        font-weight: 600;
-        text-decoration: none;
-        transition: color 0.15s ease;
+    .top-sticky-nav a.nav-item {
+        color: #475569 !important;
+        font-size: 0.94rem !important;
+        font-weight: 600 !important;
+        text-decoration: none !important;
+        padding: 6px 12px !important;
+        border-radius: 8px !important;
+        transition: all 0.15s ease !important;
     }
-    .nav-item:hover {
-        color: #059669;
-    }
-    .nav-actions {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-    .btn-nav-signin {
-        color: #475569;
-        font-size: 0.92rem;
-        font-weight: 600;
-        text-decoration: none;
-        padding: 8px 12px;
+    .top-sticky-nav a.nav-item:hover {
+        color: #10B981 !important;
+        background-color: #ECFDF5 !important;
     }
     .btn-nav-primary {
-        background-color: #10B981;
+        background-color: #10B981 !important;
         color: #FFFFFF !important;
-        font-size: 0.92rem;
-        font-weight: 700;
-        padding: 8px 18px;
-        border-radius: 9999px;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
-        transition: all 0.2s ease;
+        font-size: 0.92rem !important;
+        font-weight: 700 !important;
+        padding: 9px 20px !important;
+        border-radius: 9999px !important;
+        text-decoration: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25) !important;
+        transition: all 0.2s ease !important;
     }
     .btn-nav-primary:hover {
-        background-color: #059669;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+        background-color: #059669 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+    }
+
+    /* Section Spacing & Anchors */
+    .section-wrapper {
+        padding: 55px 0 22px 0;
+        border-top: 1px solid #F1F5F9;
+    }
+    .section-tag {
+        color: #10B981;
+        font-size: 0.82rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 8px;
+    }
+    .section-title {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #0F172A;
+        letter-spacing: -0.03em;
+        margin-bottom: 10px;
+    }
+    .section-desc {
+        color: #64748B;
+        font-size: 1.05rem;
+        max-width: 640px;
+        margin-bottom: 30px;
+        line-height: 1.6;
     }
 
     /* Hero Headline & Elements */
@@ -415,31 +878,98 @@ st.markdown("""
         color: #059669;
         border: 1px solid #A7F3D0;
         border-radius: 9999px;
-        padding: 5px 14px;
+        padding: 6px 16px;
         font-size: 0.85rem;
         font-weight: 700;
-        margin-bottom: 16px;
+        margin-bottom: 18px;
     }
     .hero-heading {
-        font-size: 3.1rem;
+        font-size: 3.2rem;
         font-weight: 800;
         line-height: 1.15;
         letter-spacing: -0.035em;
         color: #0F172A;
-        margin-bottom: 16px;
+        margin-bottom: 18px;
     }
     .hero-green-text {
         color: #10B981;
     }
     .hero-desc {
         color: #475569;
-        font-size: 1.08rem;
-        line-height: 1.6;
+        font-size: 1.1rem;
+        line-height: 1.65;
         margin-bottom: 24px;
-        max-width: 540px;
+        max-width: 560px;
     }
 
-    /* Modern Mockup Frame (Right Side) */
+    /* Hero CTA Button Group */
+    .hero-btn-group {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 22px;
+        flex-wrap: wrap;
+    }
+    .btn-hero-primary {
+        background-color: #10B981 !important;
+        color: #FFFFFF !important;
+        font-size: 1.02rem !important;
+        font-weight: 700 !important;
+        padding: 13px 26px !important;
+        border-radius: 9999px !important;
+        text-decoration: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+        transition: all 0.2s ease !important;
+    }
+    .btn-hero-primary:hover {
+        background-color: #059669 !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 22px rgba(16, 185, 129, 0.45) !important;
+    }
+    .btn-hero-secondary {
+        background-color: #FFFFFF !important;
+        color: #1E293B !important;
+        border: 1.5px solid #E2E8F0 !important;
+        font-size: 1.02rem !important;
+        font-weight: 600 !important;
+        padding: 12px 24px !important;
+        border-radius: 9999px !important;
+        text-decoration: none !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+        transition: all 0.2s ease !important;
+    }
+    .btn-hero-secondary:hover {
+        border-color: #10B981 !important;
+        color: #059669 !important;
+        background-color: #F8FAFC !important;
+        transform: translateY(-1px) !important;
+    }
+    .hero-subpoints {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        color: #64748B;
+        font-size: 0.88rem;
+        font-weight: 600;
+        flex-wrap: wrap;
+    }
+    .hero-subpoint-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .hero-check-icon {
+        color: #10B981;
+        font-weight: 800;
+    }
+
+    /* Modern Mockup Frame */
     .mockup-container {
         position: relative;
         background: #FFFFFF;
@@ -466,6 +996,63 @@ st.markdown("""
         align-items: center;
         gap: 10px;
         box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3);
+    }
+
+    /* Feature Cards */
+    .feature-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 16px;
+        padding: 24px;
+        height: 100%;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+        transition: all 0.2s ease;
+    }
+    .feature-card:hover {
+        border-color: #10B981;
+        box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.12);
+        transform: translateY(-2px);
+    }
+    .feature-icon-box {
+        width: 44px;
+        height: 44px;
+        background: #ECFDF5;
+        border: 1px solid #A7F3D0;
+        color: #059669;
+        font-size: 22px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+    }
+    .feature-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #0F172A;
+        margin-bottom: 8px;
+    }
+    .feature-text {
+        font-size: 0.92rem;
+        color: #64748B;
+        line-height: 1.6;
+    }
+
+    /* Step Timeline Cards */
+    .step-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 14px;
+        padding: 22px;
+        height: 100%;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    }
+    .step-number {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #10B981;
+        opacity: 0.9;
+        margin-bottom: 8px;
     }
 
     /* Inputs & Buttons Styling */
@@ -517,89 +1104,6 @@ st.markdown("""
         border-color: #10B981 !important;
         color: #059669 !important;
         background-color: #ECFDF5 !important;
-    }
-
-    /* Section Headers */
-    .landing-section {
-        padding: 60px 0 20px 0;
-    }
-    .section-tag {
-        color: #10B981;
-        font-size: 0.85rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin-bottom: 6px;
-    }
-    .section-title {
-        font-size: 2.2rem;
-        font-weight: 800;
-        color: #0F172A;
-        letter-spacing: -0.03em;
-        margin-bottom: 10px;
-    }
-    .section-desc {
-        color: #64748B;
-        font-size: 1.05rem;
-        max-width: 620px;
-        margin-bottom: 30px;
-        line-height: 1.6;
-    }
-
-    /* Feature Grid Cards */
-    .feature-card {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 16px;
-        padding: 24px;
-        height: 100%;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-        transition: all 0.2s ease;
-    }
-    .feature-card:hover {
-        border-color: #10B981;
-        box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.12);
-        transform: translateY(-2px);
-    }
-    .feature-icon-box {
-        width: 44px;
-        height: 44px;
-        background: #ECFDF5;
-        border: 1px solid #A7F3D0;
-        color: #059669;
-        font-size: 22px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 16px;
-    }
-    .feature-title {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #0F172A;
-        margin-bottom: 8px;
-    }
-    .feature-text {
-        font-size: 0.92rem;
-        color: #64748B;
-        line-height: 1.6;
-    }
-
-    /* Step Timeline Cards */
-    .step-card {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 14px;
-        padding: 22px;
-        position: relative;
-    }
-    .step-number {
-        font-size: 1.8rem;
-        font-weight: 800;
-        color: #10B981;
-        opacity: 0.8;
-        margin-bottom: 8px;
     }
 
     /* Tabs Styling */
@@ -662,34 +1166,36 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# SECTION 1: Top Navigation Bar
+# STICKY TOP NAVBAR (Smooth Anchor Navigation)
 # ==========================================
 st.markdown("""
-<div class="top-navbar" id="top">
-    <a href="#top" class="nav-brand">
-        <div class="brand-logo-icon">🧭</div>
-        <span>RepoGuide</span>
-        <span style="font-size: 0.75rem; color: #10B981; background: #ECFDF5; padding: 2px 8px; border-radius: 6px; font-weight: 700; border: 1px solid #A7F3D0;">Open Source</span>
+<div class="top-sticky-nav">
+    <a href="#hero" target="_self" class="nav-brand">
+        <div class="brand-logo-icon">✨</div>
+        <span style="font-size: 1.35rem; font-weight: 800; color: #0F172A; letter-spacing: -0.02em;">RepoGuide</span>
     </a>
     <div class="nav-links">
-        <a href="#demo" class="nav-item">Demo</a>
-        <a href="#features" class="nav-item">Features</a>
-        <a href="#how-it-works" class="nav-item">How it works</a>
-        <a href="#architecture" class="nav-item">Architecture</a>
+        <a href="#hero" target="_self" class="nav-item">Home</a>
+        <a href="#demo" target="_self" class="nav-item">Demo & Analyzer</a>
+        <a href="#features" target="_self" class="nav-item">Features</a>
+        <a href="#how-it-works" target="_self" class="nav-item">How it works</a>
+        <a href="#architecture" target="_self" class="nav-item">Architecture</a>
         <a href="https://github.com/coder-Yash886/OpenPath" target="_blank" class="nav-item">GitHub</a>
     </div>
-    <div class="nav-actions">
-        <span class="btn-nav-signin">DigitalOcean AI</span>
-        <a href="#demo" class="btn-nav-primary">
-            Get started <span>→</span>
+    <div style="display: flex; align-items: center; gap: 14px;">
+        <span style="font-size: 0.88rem; color: #64748B; font-weight: 600;">DigitalOcean AI</span>
+        <a href="#demo" target="_self" class="btn-nav-primary">
+            Try Demo &rarr;
         </a>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# SECTION 2: Hero Section (2-Column Layout)
+# 1. HERO SECTION (#hero)
 # ==========================================
+st.markdown('<div id="hero"></div>', unsafe_allow_html=True)
+
 col_hero_left, col_hero_right = st.columns([1.15, 0.85], gap="large")
 
 with col_hero_left:
@@ -705,35 +1211,14 @@ with col_hero_left:
     <p class="hero-desc">
         RepoGuide combines DigitalOcean Gradient AI, recursive code mapping, and live issue triage so your team and beginners understand any codebase in under a minute—not hours.
     </p>
-    """, unsafe_allow_html=True)
-
-    default_url = st.session_state.get("target_repo_url", "")
-    col_in, col_lg = st.columns([2.8, 1.2])
-    with col_in:
-        url = st.text_input(
-            "GitHub repository URL",
-            value=default_url,
-            placeholder="https://github.com/owner/repository",
-            label_visibility="collapsed"
-        )
-    with col_lg:
-        lang = st.selectbox("Language", ["Hinglish", "Hindi", "English"], label_visibility="collapsed")
-
-    col_cta1, col_cta2 = st.columns([1.2, 1])
-    with col_cta1:
-        submit_button = st.button("Start for free →", type="primary", use_container_width=True)
-    with col_cta2:
-        if st.button("Try Sample Repo", type="secondary", use_container_width=True):
-            st.session_state["target_repo_url"] = "https://github.com/coder-Yash886/Nexora-AI"
-            st.rerun()
-
-    st.markdown("""
-    <div style="display: flex; gap: 20px; color: #64748B; font-size: 0.86rem; font-weight: 500; margin-top: 18px;">
-        <span>Custom AI agents</span>
-        <span>•</span>
-        <span>Live repository tree</span>
-        <span>•</span>
-        <span>Instant PR summaries</span>
+    <div class="hero-btn-group">
+        <a href="#demo" target="_self" class="btn-hero-primary">Try Demo &rarr;</a>
+        <a href="#features" target="_self" class="btn-hero-secondary">Explore Features</a>
+    </div>
+    <div class="hero-subpoints">
+        <span class="hero-subpoint-item"><span class="hero-check-icon">✓</span> 100% Open-Source AI</span>
+        <span class="hero-subpoint-item"><span class="hero-check-icon">✓</span> Hinglish, Hindi, English</span>
+        <span class="hero-subpoint-item"><span class="hero-check-icon">✓</span> DigitalOcean Gradient AI</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -746,20 +1231,24 @@ with col_hero_right:
                 <span style="width: 10px; height: 10px; border-radius: 50%; background: #F59E0B; display: inline-block;"></span>
                 <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981; display: inline-block;"></span>
             </div>
-            <span style="font-size: 0.78rem; font-weight: 700; color: #10B981; background: #ECFDF5; padding: 2px 10px; border-radius: 9999px;">● DigitalOcean Inference Active</span>
+            <span style="font-size: 0.78rem; font-weight: 700; color: #10B981; background: #ECFDF5; padding: 3px 12px; border-radius: 9999px;">● DigitalOcean Inference Active</span>
         </div>
         <div class="mockup-inner">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <span style="font-weight: 700; font-size: 0.95rem; color: #0F172A;">🧭 RepoGuide Dashboard</span>
                 <span style="font-size: 0.75rem; color: #64748B;">v2.0 • Gradient AI</span>
             </div>
-            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; font-size: 0.82rem; margin-bottom: 8px;">
-                <div style="color: #059669; font-weight: 600;">✓ Repository Map Generated</div>
-                <div style="color: #64748B;">250 files parsed • 4 core modules mapped</div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; margin-bottom: 8px;">
+                <div style="color: #059669; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                    <span>✓</span> <span>Repository Map Generated</span>
+                </div>
+                <div style="color: #64748B; margin-top: 2px;">250 files parsed • 4 core modules mapped</div>
             </div>
-            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; font-size: 0.82rem;">
-                <div style="color: #0284C7; font-weight: 600;">🎯 Live Beginner Issues</div>
-                <div style="color: #64748B;">Open 'good first issue' tickets detected</div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 12px; font-size: 0.82rem;">
+                <div style="color: #0284C7; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                    <span>🎯</span> <span>Live Beginner Issues</span>
+                </div>
+                <div style="color: #64748B; margin-top: 2px;">Open 'good first issue' tickets detected</div>
             </div>
         </div>
         <div class="mockup-floating-card">
@@ -769,65 +1258,129 @@ with col_hero_right:
     </div>
     """, unsafe_allow_html=True)
 
-# Quick Chips Row
-st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
-col_chips_label, col_chips_items = st.columns([1, 4])
-with col_chips_label:
-    st.markdown("<p style='font-size: 0.88rem; font-weight: 700; color: #475569; margin-top: 6px;'>Quick Test Repos:</p>", unsafe_allow_html=True)
-
-with col_chips_items:
-    c_cols = st.columns(len(SAMPLE_REPOS))
-    for idx, (label, s_url) in enumerate(SAMPLE_REPOS):
-        if c_cols[idx].button(f"📦 {label}", key=f"chip_{idx}", use_container_width=True):
-            st.session_state["target_repo_url"] = s_url
-            st.rerun()
-
-# Settings Collapsible
-with st.expander("⚙️ **DigitalOcean AI & Credentials Settings** (Click to enter key or select open model)", expanded=False):
-    c_k1, c_k2 = st.columns(2)
-    with c_k1:
-        ui_do_key = st.text_input(
-            "DigitalOcean Model Access Key",
-            value=secret("DO_MODEL_ACCESS_KEY"),
-            type="password",
-            help="Your Model Access Key from DigitalOcean Inference Hub / Gradient AI.",
-            key="ui_DO_MODEL_ACCESS_KEY"
-        )
-        model_choice = st.selectbox(
-            "Open-Source Model",
-            options=SUPPORTED_MODELS,
-            index=0,
-            key="model_select"
-        )
-        if model_choice == "Custom...":
-            active_model = st.text_input("Custom Model ID", value="alibaba-qwen3-32b", key="ui_DO_MODEL_ID")
-        else:
-            active_model = model_choice
-            st.session_state["ui_DO_MODEL_ID"] = active_model
-
-    with c_k2:
-        ui_base_url = st.text_input(
-            "Inference Base URL",
-            value=secret("DO_BASE_URL", DEFAULT_BASE_URL),
-            key="ui_DO_BASE_URL"
-        )
-        ui_gh_token = st.text_input(
-            "GitHub Token (Optional)",
-            value=secret("GITHUB_TOKEN"),
-            type="password",
-            key="ui_GITHUB_TOKEN"
-        )
-    st.caption("✨ *Note: Automatically runs in Smart Local Analyzer mode if no key is entered.*")
+# 4 Value Metric Highlights
+st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+hl_1, hl_2, hl_3, hl_4 = st.columns(4)
+with hl_1:
+    st.markdown("""
+    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; text-align: center;">
+        <div style="font-size: 1.8rem; font-weight: 800; color: #10B981;">100%</div>
+        <div style="font-size: 0.85rem; color: #64748B; font-weight: 600;">Open-Source AI</div>
+    </div>
+    """, unsafe_allow_html=True)
+with hl_2:
+    st.markdown("""
+    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; text-align: center;">
+        <div style="font-size: 1.8rem; font-weight: 800; color: #0284C7;">3 Languages</div>
+        <div style="font-size: 0.85rem; color: #64748B; font-weight: 600;">Hinglish, Hindi, English</div>
+    </div>
+    """, unsafe_allow_html=True)
+with hl_3:
+    st.markdown("""
+    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; text-align: center;">
+        <div style="font-size: 1.8rem; font-weight: 800; color: #8B5CF6;">&lt; 60 Sec</div>
+        <div style="font-size: 0.85rem; color: #64748B; font-weight: 600;">First PR Onboarding</div>
+    </div>
+    """, unsafe_allow_html=True)
+with hl_4:
+    st.markdown("""
+    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px; text-align: center;">
+        <div style="font-size: 1.8rem; font-weight: 800; color: #F59E0B;">DigitalOcean</div>
+        <div style="font-size: 0.85rem; color: #64748B; font-weight: 600;">Serverless Inference</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ==========================================
-# SECTION 3: Live Analysis Workspace (#demo)
+# 2. INTERACTIVE DEMO & LIVE ANALYZER (#demo)
 # ==========================================
-st.markdown("<div id='demo'></div>", unsafe_allow_html=True)
+st.markdown("""
+<div class="section-wrapper" id="demo">
+    <div class="section-tag">Interactive Workspace</div>
+    <div class="section-title">🚀 Live Repository Analyzer</div>
+    <div class="section-desc">Paste any public GitHub repository URL below. Get an instant, structured onboarding guide, recursive file tree, live beginner issues, and ready-to-copy Git commands!</div>
+</div>
+""", unsafe_allow_html=True)
 
-if submit_button and url:
+# One-Click Sample Repos
+st.markdown("<p style='font-size: 0.88rem; font-weight: 700; color: #475569; margin-bottom: 8px;'>⚡ One-Click Test Repositories:</p>", unsafe_allow_html=True)
+c_cols = st.columns(len(SAMPLE_REPOS))
+for idx, (label, s_url) in enumerate(SAMPLE_REPOS):
+    if c_cols[idx].button(f"📦 {label}", key=f"chip_live_{idx}", use_container_width=True):
+        st.session_state["target_repo_url"] = s_url
+        st.session_state["auto_run_demo"] = True
+        st.rerun()
+
+st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+
+# Main Search Input
+cur_url = st.session_state.get("target_repo_url", "")
+col_d_url, col_d_lang = st.columns([3, 1])
+with col_d_url:
+    demo_url = st.text_input(
+        "GitHub repository URL",
+        value=cur_url,
+        placeholder="https://github.com/owner/repository",
+        label_visibility="collapsed",
+        key="main_demo_url_input"
+    )
+with col_d_lang:
+    demo_lang = st.selectbox(
+        "Language",
+        ["Hinglish", "Hindi", "English"],
+        index=0,
+        label_visibility="collapsed",
+        key="main_demo_lang_select"
+    )
+
+col_d_btn, col_d_set = st.columns([1.2, 2.8])
+with col_d_btn:
+    run_demo_button = st.button("🚀 Explain this repo", type="primary", use_container_width=True, key="btn_main_run")
+
+with col_d_set:
+    with st.expander("⚙️ DigitalOcean AI & Cloud Credentials Settings", expanded=False):
+        c_k1, c_k2 = st.columns(2)
+        with c_k1:
+            ui_do_key = st.text_input(
+                "DigitalOcean Model Access Key",
+                value=secret("DO_MODEL_ACCESS_KEY"),
+                type="password",
+                help="Your Model Access Key from DigitalOcean Inference Hub / Gradient AI.",
+                key="ui_DO_MODEL_ACCESS_KEY"
+            )
+            model_choice = st.selectbox(
+                "Open-Source Model",
+                options=SUPPORTED_MODELS,
+                index=0,
+                key="model_select"
+            )
+            if model_choice == "Custom...":
+                active_model = st.text_input("Custom Model ID", value="alibaba-qwen3-32b", key="ui_DO_MODEL_ID")
+            else:
+                active_model = model_choice
+                st.session_state["ui_DO_MODEL_ID"] = active_model
+
+        with c_k2:
+            ui_base_url = st.text_input(
+                "Inference Base URL",
+                value=secret("DO_BASE_URL", DEFAULT_BASE_URL),
+                key="ui_DO_BASE_URL"
+            )
+            ui_gh_token = st.text_input(
+                "GitHub Token (Optional)",
+                value=secret("GITHUB_TOKEN"),
+                type="password",
+                key="ui_GITHUB_TOKEN"
+            )
+        st.caption("✨ *Runs automatically in Smart Local Analyzer mode if no key is entered.*")
+
+# Trigger Run Logic
+trigger_run = run_demo_button or st.session_state.get("auto_run_demo", False)
+if st.session_state.get("auto_run_demo", False):
+    st.session_state["auto_run_demo"] = False
+
+if trigger_run and demo_url:
     try:
-        owner, repo = parse_repo(url)
-        
+        owner, repo = parse_repo(demo_url)
         with st.spinner(f"🔍 Reading repository '{owner}/{repo}' via GitHub API..."):
             info, readme, paths, issues = fetch_repo(owner, repo)
 
@@ -837,7 +1390,7 @@ if submit_button and url:
         st.session_state["current_issues"] = issues
         st.session_state["current_owner"] = owner
         st.session_state["current_repo"] = repo
-        st.session_state["current_lang"] = lang
+        st.session_state["current_lang"] = demo_lang
         st.session_state["repo_chat_history"] = []
 
         active_key = secret("DO_MODEL_ACCESS_KEY")
@@ -851,7 +1404,7 @@ if submit_button and url:
                 ) or "No open 'good first issue' tickets found."
 
                 prompt = f"""You are a friendly open-source mentor for beginners.
-Explain this GitHub repository in simple {lang}.
+Explain this GitHub repository in simple {demo_lang}.
 
 Repo: {info['full_name']}
 Description: {info.get('description')}
@@ -891,14 +1444,46 @@ Do not invent files that are not in the file list."""
                     st.session_state["is_cloud_ai"] = True
                 except Exception as llm_err:
                     st.warning(f"⚠️ DigitalOcean Cloud Inference notice: {llm_err}. Using Smart Analyzer fallback.")
-                    answer = generate_smart_guide(info, readme, paths, issues, lang)
+                    answer = generate_smart_guide(info, readme, paths, issues, demo_lang)
                     st.session_state["is_cloud_ai"] = False
+
+                with st.spinner("🏗️ Generating Deep System Design & Architecture Analysis..."):
+                    arch_content = generate_deep_architecture(
+                        info=info,
+                        readme=readme,
+                        paths=paths,
+                        issues=issues,
+                        lang=demo_lang,
+                        api_key=active_key if st.session_state.get("is_cloud_ai", False) else None,
+                        model=model_to_use,
+                        base_url=base_url_to_use
+                    )
+
+                with st.spinner("📝 Generating Production-Grade README.md..."):
+                    prod_readme = generate_production_readme(
+                        info=info,
+                        readme=readme,
+                        paths=paths,
+                        issues=issues,
+                        lang=demo_lang,
+                        api_key=active_key if st.session_state.get("is_cloud_ai", False) else None,
+                        model=model_to_use,
+                        base_url=base_url_to_use
+                    )
         else:
             with st.spinner("⚡ Analyzing codebase via RepoGuide Smart Engine..."):
-                answer = generate_smart_guide(info, readme, paths, issues, lang)
+                answer = generate_smart_guide(info, readme, paths, issues, demo_lang)
+                arch_content = generate_smart_deep_architecture(info, readme, paths, issues, demo_lang)
+                prod_readme = generate_smart_readme(info, readme, paths, issues, demo_lang)
                 st.session_state["is_cloud_ai"] = False
 
+        # Run README Health Audit
+        readme_audit = audit_readme(readme, paths)
+
         st.session_state["current_guide"] = answer
+        st.session_state["current_arch"] = arch_content
+        st.session_state["current_readme_audit"] = readme_audit
+        st.session_state["current_generated_readme"] = prod_readme
 
     except ValueError as ve:
         st.warning(f"⚠️ {ve}")
@@ -907,7 +1492,7 @@ Do not invent files that are not in the file list."""
     except Exception as e:
         st.error(f"❌ Unexpected Error: {str(e)}")
 
-# Display Analyzed Repo & Tabs
+# Display Tabs and Result if Analyzed
 if "current_guide" in st.session_state and st.session_state["current_guide"]:
     guide_content = st.session_state["current_guide"]
     issues = st.session_state.get("current_issues", [])
@@ -919,34 +1504,74 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
     lang = st.session_state.get("current_lang", "English")
     is_cloud_ai = st.session_state.get("is_cloud_ai", False)
 
-    st.markdown("<hr style='margin: 2rem 0 1.5rem 0; border: none; border-top: 1px solid #E2E8F0;'>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
     mode_text = "🌊 DigitalOcean Gradient AI" if is_cloud_ai else "⚡ RepoGuide Smart Analyzer"
-    
+    readme_audit = st.session_state.get("current_readme_audit", {})
+    audit_score = readme_audit.get("score", 0)
+    audit_exists = readme_audit.get("exists", False)
+    audit_present = readme_audit.get("present", [])
+    audit_missing = readme_audit.get("missing", [])
+
+    # Score color
+    if audit_score >= 80:
+        score_color = "#10B981"
+        score_label = "Excellent"
+        score_bg = "#ECFDF5"
+        score_border = "#A7F3D0"
+    elif audit_score >= 55:
+        score_color = "#F59E0B"
+        score_label = "Needs Work"
+        score_bg = "#FFFBEB"
+        score_border = "#FDE68A"
+    else:
+        score_color = "#EF4444"
+        score_label = "Poor"
+        score_bg = "#FEF2F2"
+        score_border = "#FECACA"
+
+    present_html = "".join([f'<span style="background:#ECFDF5;color:#059669;border:1px solid #A7F3D0;padding:3px 10px;border-radius:6px;font-size:0.8rem;font-weight:600;">✓ {p}</span>' for p in audit_present])
+    missing_html = "".join([f'<span style="background:#FEF2F2;color:#EF4444;border:1px solid #FECACA;padding:3px 10px;border-radius:6px;font-size:0.8rem;font-weight:600;">✗ {m}</span>' for m in audit_missing])
+
     st.markdown(f"""
-    <div class="white-card">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
-            <div>
-                <h2 style="margin: 0 0 6px 0; color: #0F172A; font-size: 1.65rem; font-weight: 800;">{info.get('full_name')}</h2>
-                <p style="margin: 0 0 14px 0; color: #475569; font-size: 0.98rem;">{info.get('description') or 'No description provided.'}</p>
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:20px;padding:24px 28px;margin-bottom:18px;box-shadow:0 4px 20px rgba(0,0,0,0.04);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:18px;">
+            <div style="flex:1;min-width:280px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                    <span style="font-size:1.7rem;font-weight:800;color:#0F172A;letter-spacing:-0.02em;">{info.get('full_name')}</span>
+                </div>
+                <p style="margin:0 0 14px 0;color:#475569;font-size:0.98rem;line-height:1.5;">{info.get('description') or 'No description provided.'}</p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">💻 {info.get('language') or 'General'}</span>
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">⭐ {info.get('stargazers_count', 0):,} stars</span>
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">🍴 {info.get('forks_count', 0):,} forks</span>
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">🌿 {info.get('default_branch', 'main')}</span>
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">📄 {len(paths):,} files</span>
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">🎯 {len(issues)} good-first-issues</span>
+                </div>
             </div>
-            <div style="background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; padding: 5px 14px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700;">{mode_text}</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <div style="background:{score_bg};border:2px solid {score_border};border-radius:16px;padding:14px 22px;text-align:center;min-width:120px;">
+                    <div style="font-size:2.2rem;font-weight:800;color:{score_color};line-height:1;">{audit_score}</div>
+                    <div style="font-size:0.75rem;font-weight:700;color:{score_color};text-transform:uppercase;letter-spacing:0.06em;">README Score</div>
+                    <div style="font-size:0.72rem;color:#64748B;margin-top:2px;">{score_label}</div>
+                </div>
+                <div style="background:#ECFDF5;color:#059669;border:1px solid #A7F3D0;padding:5px 14px;border-radius:9999px;font-size:0.8rem;font-weight:700;">{mode_text}</div>
+            </div>
         </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">💻 {info.get('language') or 'General'}</span>
-            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">⭐ {info.get('stargazers_count', 0):,} stars</span>
-            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">🍴 {info.get('forks_count', 0):,} forks</span>
-            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">🌿 {info.get('default_branch', 'main')}</span>
-        </div>
+        {'<div style="margin-bottom:10px;"><div style="font-size:0.8rem;font-weight:700;color:#0F172A;margin-bottom:8px;">✅ README Sections Found:</div><div style="display:flex;flex-wrap:wrap;gap:6px;">' + present_html + '</div></div>' if audit_present else ''}
+        {'<div><div style="font-size:0.8rem;font-weight:700;color:#EF4444;margin-bottom:8px;">⚠️ Missing Sections (Tab 7 generates these automatically):</div><div style="display:flex;flex-wrap:wrap;gap:6px;">' + missing_html + '</div></div>' if audit_missing else ''}
     </div>
     """, unsafe_allow_html=True)
 
-    tab_guide, tab_issues, tab_chat, tab_tree, tab_checklist = st.tabs([
+    tab_guide, tab_issues, tab_chat, tab_arch, tab_tree, tab_checklist, tab_readme = st.tabs([
         "🧭 Beginner Guide",
         "🎯 Good First Issues & PR",
         "💬 Ask RepoGuide AI",
-        "🌳 Architecture & Files",
-        "✅ Pre-PR Checklist"
+        "🏗️ Deep Analysis",
+        "🌳 File Architecture",
+        "✅ Pre-PR Checklist",
+        "📝 Generate README"
     ])
 
     with tab_guide:
@@ -956,7 +1581,8 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
             label="📥 Download Guide as Markdown (.md)",
             data=guide_content,
             file_name=f"{owner}_{repo}_repoguide.md",
-            mime="text/markdown"
+            mime="text/markdown",
+            key="btn_download_guide_live"
         )
 
     with tab_issues:
@@ -979,10 +1605,10 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
             st.caption("Select an issue below to generate tailored Git commands, files to inspect, and ready-to-copy PR template:")
 
             issue_options = {f"#{i['number']} - {i['title']}": i for i in issues}
-            selected_issue_title = st.selectbox("Choose an issue to work on:", list(issue_options.keys()))
+            selected_issue_title = st.selectbox("Choose an issue to work on:", list(issue_options.keys()), key="live_issue_sel")
             selected_issue = issue_options[selected_issue_title]
 
-            if st.button("📝 Generate My First PR Plan", key="btn_pr_plan"):
+            if st.button("📝 Generate My First PR Plan", key="btn_pr_plan_live"):
                 with st.spinner("Analyzing issue context and drafting PR strategy..."):
                     issue_detail = fetch_issue_body(owner, repo, selected_issue['number'])
                     issue_body = issue_detail.get("body", selected_issue.get("title", ""))[:1500]
@@ -1096,10 +1722,25 @@ Answer clearly and warmly in {lang}."""
                     st.markdown(ai_reply)
                     st.session_state["repo_chat_history"].append({"role": "assistant", "content": ai_reply})
 
+    with tab_arch:
+        arch_content = st.session_state.get("current_arch", "")
+        if arch_content:
+            st.markdown(arch_content)
+            st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+            st.download_button(
+                label="📥 Download Deep Analysis (.md)",
+                data=arch_content,
+                file_name=f"{owner}_{repo}_deep_analysis.md",
+                mime="text/markdown",
+                key="btn_download_arch"
+            )
+        else:
+            st.info("Run the analyzer above to generate a deep architecture analysis.")
+
     with tab_tree:
         st.subheader("🌳 File Tree & Architecture Categorization")
         st.caption(f"Browse key files across {len(paths)} detected source paths.")
-        
+
         categories = classify_file_tree(paths)
         col_c1, col_c2 = st.columns(2)
 
@@ -1129,19 +1770,19 @@ Answer clearly and warmly in {lang}."""
         st.subheader("✅ Open-Source Contribution Pre-Flight Checklist")
         st.caption("Complete these 6 steps before submitting your Pull Request:")
 
-        c1 = st.checkbox("1. Did you fork the repo and create a new feature branch? (Never commit directly to main)", value=False)
-        c2 = st.checkbox("2. Did you pull the latest upstream changes before starting? (`git pull upstream main`)", value=False)
-        c3 = st.checkbox("3. Did you follow code formatting and style guidelines? (Check contributing guide)", value=False)
-        c4 = st.checkbox("4. Did you run the existing test suite and verify all tests pass?", value=False)
-        c5 = st.checkbox("5. Did you write or update tests for your fix/feature?", value=False)
-        c6 = st.checkbox("6. Did you link the issue in your PR body (`Closes #<issue_number>`)?", value=False)
+        c1 = st.checkbox("1. Did you fork the repo and create a new feature branch? (Never commit directly to main)", value=False, key="live_chk_1")
+        c2 = st.checkbox("2. Did you pull the latest upstream changes before starting? (`git pull upstream main`)", value=False, key="live_chk_2")
+        c3 = st.checkbox("3. Did you follow code formatting and style guidelines? (Check contributing guide)", value=False, key="live_chk_3")
+        c4 = st.checkbox("4. Did you run the existing test suite and verify all tests pass?", value=False, key="live_chk_4")
+        c5 = st.checkbox("5. Did you write or update tests for your fix/feature?", value=False, key="live_chk_5")
+        c6 = st.checkbox("6. Did you link the issue in your PR body (`Closes #<issue_number>`)?", value=False, key="live_chk_6")
 
-        score = sum([c1, c2, c3, c4, c5, c6])
-        st.progress(score / 6)
-        if score == 6:
+        pr_score = sum([c1, c2, c3, c4, c5, c6])
+        st.progress(pr_score / 6)
+        if pr_score == 6:
             st.success("🎉 You are 100% ready to submit your Pull Request!")
         else:
-            st.info(f"Progress: {score}/6 items completed.")
+            st.info(f"Progress: {pr_score}/6 items completed.")
 
         st.markdown("<hr style='margin: 1.5rem 0 1rem 0; border: none; border-top: 1px solid #E2E8F0;'>", unsafe_allow_html=True)
         st.subheader("📜 Beginner Git Command Reference")
@@ -1156,38 +1797,120 @@ Answer clearly and warmly in {lang}."""
         | **Push** | `git push origin fix-my-issue` | GitHub pe apna branch upload karna |
         """)
 
+    with tab_readme:
+        prod_readme = st.session_state.get("current_generated_readme", "")
+        readme_audit_data = st.session_state.get("current_readme_audit", {})
+        r_score = readme_audit_data.get("score", 0)
+        r_exists = readme_audit_data.get("exists", False)
+        r_missing = readme_audit_data.get("missing", [])
+
+        if r_score < 100 and r_missing:
+            missing_list = ", ".join(r_missing)
+            if not r_exists:
+                st.markdown(f"""
+                <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:14px;padding:18px 22px;margin-bottom:20px;">
+                    <div style="font-size:1.05rem;font-weight:800;color:#DC2626;margin-bottom:6px;">⚠️ No README.md detected in this repository!</div>
+                    <p style="color:#7F1D1D;font-size:0.92rem;margin:0;">RepoGuide has generated a complete, production-grade README.md below. Copy it to your repo root to improve discoverability and contributor experience.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:18px 22px;margin-bottom:20px;">
+                    <div style="font-size:1.05rem;font-weight:800;color:#B45309;margin-bottom:6px;">📝 README Score: {r_score}/100 — Missing sections detected</div>
+                    <p style="color:#78350F;font-size:0.9rem;margin:0;">Missing: <strong>{missing_list}</strong>. RepoGuide has auto-generated an enhanced README below with all sections filled in.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+        if prod_readme:
+            col_dl1, col_dl2 = st.columns([1, 3])
+            with col_dl1:
+                st.download_button(
+                    label="📥 Download README.md",
+                    data=prod_readme,
+                    file_name="README.md",
+                    mime="text/markdown",
+                    key="btn_download_readme_prod",
+                    use_container_width=True
+                )
+            with col_dl2:
+                st.markdown("""
+                <div style="padding: 10px 0; color: #64748B; font-size: 0.88rem;">
+                    ⬅️ Click to download — then replace your repo's <code>README.md</code> and commit it!
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+            with st.expander("📄 Preview Generated README.md", expanded=True):
+                st.markdown(prod_readme)
+        else:
+            st.info("Run the analyzer above to auto-generate a production-grade README.md for this repository.")
+
 # ==========================================
-# SECTION 4: Features Grid (#features)
+# 3. CORE FEATURES SECTION (#features)
 # ==========================================
 st.markdown("""
-<div class="landing-section" id="features">
+<div class="section-wrapper" id="features">
     <div class="section-tag">Core Capabilities</div>
-    <div class="section-title">Everything you need to contribute with confidence</div>
+    <div class="section-title">✨ Everything you need to contribute with confidence</div>
     <div class="section-desc">RepoGuide bridges the gap between intimidating codebases and beginner contributors through open-weight AI models.</div>
 </div>
 """, unsafe_allow_html=True)
 
-f_col1, f_col2, f_col3 = st.columns(3, gap="medium")
+# Multilingual Showcase Card
+st.markdown("""
+<div class="white-card" style="margin-bottom: 24px;">
+    <div style="font-size: 1.25rem; font-weight: 800; color: #0F172A; margin-bottom: 6px;">🌐 Multilingual AI Mentorship (Side-by-Side Preview)</div>
+    <p style="color: #64748B; font-size: 0.95rem; margin-bottom: 16px;">RepoGuide explains open-source architecture in the language Indian and global developers are most comfortable with.</p>
+</div>
+""", unsafe_allow_html=True)
 
-with f_col1:
+c_lang1, c_lang2, c_lang3 = st.columns(3)
+with c_lang1:
     st.markdown("""
-    <div class="feature-card">
-        <div class="feature-icon-box">🌐</div>
-        <div class="feature-title">Multilingual Mentorship</div>
-        <div class="feature-text">Break language barriers! Explanations in <strong>Hinglish</strong>, <strong>Hindi</strong>, or <strong>English</strong> tailored specifically for Indian and global developer communities.</div>
+    <div style="background: #FFFFFF; border: 1.5px solid #10B981; border-radius: 14px; padding: 18px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.08); height: 100%;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: #10B981; text-transform: uppercase;">🇮🇳 Hinglish (Default)</div>
+        <div style="font-size: 1.05rem; font-weight: 700; color: #0F172A; margin: 6px 0;">Beginner Friendly</div>
+        <p style="font-size: 0.88rem; color: #475569; line-height: 1.6;">
+            "FastAPI ek high-performance Python framework hai. Agar aapko auth fix karna hai, toh <code>app/routers/auth.py</code> ko check karein aur tests run karne ke liye <code>pytest</code> execute karein."
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
-with f_col2:
+with c_lang2:
+    st.markdown("""
+    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px; height: 100%;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: #0284C7; text-transform: uppercase;">🇮🇳 Pure Hindi</div>
+        <div style="font-size: 1.05rem; font-weight: 700; color: #0F172A; margin: 6px 0;">सरल हिंदी में समझें</div>
+        <p style="font-size: 0.88rem; color: #475569; line-height: 1.6;">
+            "यह एक ओपन-सोर्स प्रोजेक्ट है। शुरुआत करने के लिए पहले <code>git clone</code> करें, फिर रिपॉजिटरी की मुख्य फाइलों को देखें और पहला पुल रिक्वेस्ट बनाएं।"
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with c_lang3:
+    st.markdown("""
+    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px; height: 100%;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: #8B5CF6; text-transform: uppercase;">🌐 English</div>
+        <div style="font-size: 1.05rem; font-weight: 700; color: #0F172A; margin: 6px 0;">Standard Global</div>
+        <p style="font-size: 0.88rem; color: #475569; line-height: 1.6;">
+            "FastAPI is a modern web framework. Core dependencies live in <code>pyproject.toml</code>. Follow the 4-step setup instructions to launch the dev server."
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+
+# 6 Feature Cards
+f_c1, f_c2, f_c3 = st.columns(3, gap="medium")
+with f_c1:
     st.markdown("""
     <div class="feature-card">
         <div class="feature-icon-box">🎯</div>
-        <div class="feature-title">Live Issue Discovery</div>
-        <div class="feature-text">Fetches open, verified <code>good first issue</code> tickets via GitHub REST API, filtering out PRs so you only tackle genuine beginner tasks.</div>
+        <div class="feature-title">Live Issue Triage</div>
+        <div class="feature-text">Automatically pulls open, verified <code>good first issue</code> tickets via GitHub REST API, ignoring PRs so you only tackle genuine beginner tasks.</div>
     </div>
     """, unsafe_allow_html=True)
-
-with f_col3:
+with f_c2:
     st.markdown("""
     <div class="feature-card">
         <div class="feature-icon-box">🛠️</div>
@@ -1195,30 +1918,27 @@ with f_col3:
         <div class="feature-text">Select any issue to generate step-by-step Git bash commands, suggested files to inspect, Conventional Commits, and ready-to-paste PR descriptions.</div>
     </div>
     """, unsafe_allow_html=True)
-
-st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-
-f_col4, f_col5, f_col6 = st.columns(3, gap="medium")
-
-with f_col4:
+with f_c3:
     st.markdown("""
     <div class="feature-card">
         <div class="feature-icon-box">🌳</div>
-        <div class="feature-title">Architecture Mapper</div>
-        <div class="feature-text">Recursively analyzes the git tree up to 250 files, organizing files into Source, Config, Tests, and Community guidelines. Zero hallucinations.</div>
+        <div class="feature-title">Recursive Code Mapping</div>
+        <div class="feature-text">Recursively analyzes the git tree up to 250 files, organizing files into Source, Config, Tests, and Documentation. Zero hallucinations.</div>
     </div>
     """, unsafe_allow_html=True)
 
-with f_col5:
+st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
+f_c4, f_c5, f_c6 = st.columns(3, gap="medium")
+with f_c4:
     st.markdown("""
     <div class="feature-card">
         <div class="feature-icon-box">💬</div>
-        <div class="feature-title">Ask RepoGuide AI</div>
+        <div class="feature-title">Ask RepoGuide AI Chatbot</div>
         <div class="feature-text">Have follow-up questions? Ask the interactive chatbot about test setups, database models, or API routing grounded in the codebase.</div>
     </div>
     """, unsafe_allow_html=True)
-
-with f_col6:
+with f_c5:
     st.markdown("""
     <div class="feature-card">
         <div class="feature-icon-box">⚡</div>
@@ -1226,14 +1946,72 @@ with f_col6:
         <div class="feature-text">Powered by serverless open-weight models (Alibaba Qwen3-32B, Llama-3.1-70B) served with low-latency and auto-sanitized reasoning tags.</div>
     </div>
     """, unsafe_allow_html=True)
+with f_c6:
+    st.markdown("""
+    <div class="feature-card">
+        <div class="feature-icon-box">✅</div>
+        <div class="feature-title">Pre-Flight PR Checklist</div>
+        <div class="feature-text">An interactive 6-step checklist with a live progress bar ensuring your Pull Request adheres to open-source guidelines before you submit.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Comparison Table
+st.markdown("<div style='height: 30px;'></div>", unsafe_allow_html=True)
+st.markdown("""
+<div class="white-card">
+    <h3 style="margin-top: 0; color: #0F172A;">📊 Why RepoGuide beats generic AI & manual browsing:</h3>
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem; color: #334155;">
+        <thead>
+            <tr style="border-bottom: 2px solid #E2E8F0; text-align: left;">
+                <th style="padding: 12px 10px;">Capability</th>
+                <th style="padding: 12px 10px; color: #10B981;">RepoGuide (DigitalOcean AI)</th>
+                <th style="padding: 12px 10px; color: #64748B;">Standard GitHub</th>
+                <th style="padding: 12px 10px; color: #64748B;">Generic ChatGPT</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr style="border-bottom: 1px solid #F1F5F9;">
+                <td style="padding: 12px 10px; font-weight: 600;">Real File Tree Grounding</td>
+                <td style="padding: 12px 10px; color: #10B981; font-weight: 700;">✅ Real 250 paths injected</td>
+                <td style="padding: 12px 10px;">⚠️ Raw manual browsing</td>
+                <td style="padding: 12px 10px;">❌ Hallucinates fake files</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #F1F5F9;">
+                <td style="padding: 12px 10px; font-weight: 600;">Live Good-First-Issues</td>
+                <td style="padding: 12px 10px; color: #10B981; font-weight: 700;">✅ Live GitHub API extraction</td>
+                <td style="padding: 12px 10px;">⚠️ Manual filter search</td>
+                <td style="padding: 12px 10px;">❌ Cannot fetch live tickets</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #F1F5F9;">
+                <td style="padding: 12px 10px; font-weight: 600;">Multilingual Explanations</td>
+                <td style="padding: 12px 10px; color: #10B981; font-weight: 700;">✅ Hinglish, Hindi, English</td>
+                <td style="padding: 12px 10px;">❌ English only</td>
+                <td style="padding: 12px 10px;">⚠️ Requires complex prompting</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #F1F5F9;">
+                <td style="padding: 12px 10px; font-weight: 600;">Automated PR Plan Generator</td>
+                <td style="padding: 12px 10px; color: #10B981; font-weight: 700;">✅ Exact Git bash commands</td>
+                <td style="padding: 12px 10px;">❌ None</td>
+                <td style="padding: 12px 10px;">⚠️ Generic advice</td>
+            </tr>
+            <tr>
+                <td style="padding: 12px 10px; font-weight: 600;">Open-Weight AI Model</td>
+                <td style="padding: 12px 10px; color: #10B981; font-weight: 700;">✅ Qwen3-32B / Llama-3.1</td>
+                <td style="padding: 12px 10px;">❌ None</td>
+                <td style="padding: 12px 10px;">❌ Proprietary Closed API</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+""", unsafe_allow_html=True)
 
 # ==========================================
-# SECTION 5: How It Works (#how-it-works)
+# 4. HOW IT WORKS SECTION (#how-it-works)
 # ==========================================
 st.markdown("""
-<div class="landing-section" id="how-it-works">
+<div class="section-wrapper" id="how-it-works">
     <div class="section-tag">Workflow</div>
-    <div class="section-title">From Codebase Confusion to Merged PR in 4 Steps</div>
+    <div class="section-title">⚙️ From Codebase Confusion to Merged PR in 4 Steps</div>
     <div class="section-desc">RepoGuide eliminates friction by automating repo context extraction and generating a clear roadmap.</div>
 </div>
 """, unsafe_allow_html=True)
@@ -1244,8 +2022,8 @@ with s_col1:
     st.markdown("""
     <div class="step-card">
         <div class="step-number">01</div>
-        <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 6px; color: #0F172A;">Paste Repository</div>
-        <div style="font-size: 0.88rem; color: #64748B;">Enter any public GitHub URL (e.g. FastAPI or your personal project) and choose your preferred language.</div>
+        <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color: #0F172A;">Paste Repository</div>
+        <div style="font-size: 0.88rem; color: #64748B; line-height: 1.5;">Enter any public GitHub URL (e.g. FastAPI or your personal project) and choose your preferred language.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1253,8 +2031,8 @@ with s_col2:
     st.markdown("""
     <div class="step-card">
         <div class="step-number">02</div>
-        <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 6px; color: #0F172A;">GitHub Extraction</div>
-        <div style="font-size: 0.88rem; color: #64748B;">GitHub REST API extracts the full README, recursive file tree (up to 250 paths), and open beginner issues.</div>
+        <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color: #0F172A;">GitHub Extraction</div>
+        <div style="font-size: 0.88rem; color: #64748B; line-height: 1.5;">GitHub REST API extracts the full README, recursive file tree (up to 250 paths), and open beginner issues.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1262,8 +2040,8 @@ with s_col3:
     st.markdown("""
     <div class="step-card">
         <div class="step-number">03</div>
-        <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 6px; color: #0F172A;">Gradient AI Inference</div>
-        <div style="font-size: 0.88rem; color: #64748B;">Open-source LLM on DigitalOcean analyzes the repo structure, stripping hidden think tags and preventing hallucinations.</div>
+        <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color: #0F172A;">Gradient AI Inference</div>
+        <div style="font-size: 0.88rem; color: #64748B; line-height: 1.5;">Open-source LLM on DigitalOcean analyzes the repo structure, stripping hidden think tags and preventing hallucinations.</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1271,16 +2049,16 @@ with s_col4:
     st.markdown("""
     <div class="step-card">
         <div class="step-number">04</div>
-        <div style="font-weight: 700; font-size: 1.05rem; margin-bottom: 6px; color: #0F172A;">Execute & Contribute</div>
-        <div style="font-size: 0.88rem; color: #64748B;">Get an onboarding map, interactive Q&A, and exact git commands to create your branch and submit your PR!</div>
+        <div style="font-weight: 800; font-size: 1.05rem; margin-bottom: 6px; color: #0F172A;">Execute & Contribute</div>
+        <div style="font-size: 0.88rem; color: #64748B; line-height: 1.5;">Get an onboarding map, interactive Q&A, and exact git commands to create your branch and submit your PR!</div>
     </div>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# SECTION 6: Architecture & DigitalOcean AI (#architecture)
+# 5. ARCHITECTURE & DIGITALOCEAN AI (#architecture)
 # ==========================================
 st.markdown("""
-<div class="landing-section" id="architecture">
+<div class="section-wrapper" id="architecture">
     <div class="section-tag">Infrastructure</div>
     <div class="section-title">Built with Open-Weight AI on DigitalOcean</div>
     <div class="section-desc">Designed to compete for the <strong>Best Open-Source AI Project (DigitalOcean)</strong> prize at Hacktoberfest Hack Day Delhi.</div>
@@ -1296,16 +2074,12 @@ with arch_col1:
         <p style="color: #475569; font-size: 0.95rem; line-height: 1.6;">
             RepoGuide avoids proprietary closed-source models. It leverages <strong>DigitalOcean Serverless Inference (Gradient AI)</strong> with models like <strong>Alibaba Qwen3-32B</strong> and <strong>Meta Llama-3.1-70B</strong>.
         </p>
-        <div style="margin-top: 16px;">
-            <div style="margin-bottom: 10px;">
-                <strong style="color: #059669;">✓ OpenAI-Compatible SDK:</strong> Uses standard python client pointed to <code>https://inference.do-ai.run/v1</code>.
-            </div>
-            <div style="margin-bottom: 10px;">
-                <strong style="color: #059669;">✓ App Platform Ready:</strong> Native Python deployment with port 8080 binding and zero configuration friction.
-            </div>
-            <div style="margin-bottom: 10px;">
-                <strong style="color: #059669;">✓ 100% Open-Source & MIT Licensed:</strong> Fully transparent, forkable, and modular.
-            </div>
+        <div style="margin-top: 16px; font-size: 0.9rem; line-height: 1.8; color: #334155;">
+            <div><strong style="color: #10B981;">• Base URL:</strong> <code>https://inference.do-ai.run/v1</code></div>
+            <div><strong style="color: #10B981;">• Open Models:</strong> <code>alibaba-qwen3-32b</code>, <code>llama-3.1-70b-instruct</code></div>
+            <div><strong style="color: #10B981;">• SDK Protocol:</strong> Standard <code>openai</code> Python client format</div>
+            <div><strong style="color: #10B981;">• Deployment:</strong> DigitalOcean App Platform (Port 8080)</div>
+            <div><strong style="color: #10B981;">• Fallback Engine:</strong> Zero-downtime offline Smart Analyzer</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1313,37 +2087,37 @@ with arch_col1:
 with arch_col2:
     st.markdown("""
     <div class="white-card">
-        <h3 style="margin-top: 0; color: #0F172A; font-size: 1.25rem;">Technology Stack Summary</h3>
+        <h3 style="margin-top: 0; color: #0F172A; font-size: 1.25rem;">Project Environment & Security</h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; color: #334155;">
             <tr style="border-bottom: 1px solid #E2E8F0;">
                 <td style="padding: 10px 0; font-weight: 700;">Frontend</td>
-                <td style="padding: 10px 0;">Streamlit + Plus Jakarta Sans + CSS Design System</td>
+                <td style="padding: 10px 0;">Streamlit + Plus Jakarta Sans</td>
             </tr>
             <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 10px 0; font-weight: 700;">AI Inference</td>
-                <td style="padding: 10px 0;">DigitalOcean Gradient AI Serverless Inference</td>
+                <td style="padding: 10px 0; font-weight: 700;">Secrets Protection</td>
+                <td style="padding: 10px 0;"><code>.env</code> & <code>.streamlit/secrets.toml</code> git-ignored</td>
             </tr>
             <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 10px 0; font-weight: 700;">AI Models</td>
-                <td style="padding: 10px 0;">Qwen3-32B / Llama-3.1-70B-Instruct</td>
+                <td style="padding: 10px 0; font-weight: 700;">License</td>
+                <td style="padding: 10px 0;">MIT Open-Source License</td>
             </tr>
             <tr style="border-bottom: 1px solid #E2E8F0;">
-                <td style="padding: 10px 0; font-weight: 700;">Repo Intelligence</td>
-                <td style="padding: 10px 0;">GitHub REST API (Metadata, Trees, README, Issues)</td>
+                <td style="padding: 10px 0; font-weight: 700;">Skill Integration</td>
+                <td style="padding: 10px 0;"><code>SKILL.md</code> agent workflow included</td>
             </tr>
             <tr>
-                <td style="padding: 10px 0; font-weight: 700;">Hosting</td>
-                <td style="padding: 10px 0;">DigitalOcean App Platform (Port 8080)</td>
+                <td style="padding: 10px 0; font-weight: 700;">Author</td>
+                <td style="padding: 10px 0;">Yash Kumar (DTU)</td>
             </tr>
         </table>
     </div>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# SECTION 7: Clean Footer
+# 6. GLOBAL FOOTER
 # ==========================================
 st.markdown("""
-<div style="margin-top: 70px; padding: 30px 0; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; color: #64748B; font-size: 0.88rem;">
+<div style="margin-top: 60px; padding: 26px 0; border-top: 1px solid #E2E8F0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; color: #64748B; font-size: 0.88rem;">
     <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-weight: 800; color: #0F172A; font-size: 1.05rem;">🧭 RepoGuide</span>
         <span>•</span>
