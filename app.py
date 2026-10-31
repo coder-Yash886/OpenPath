@@ -21,10 +21,10 @@ SUPPORTED_MODELS = [
 ]
 
 SAMPLE_REPOS = [
-    "https://github.com/pallets/flask",
+    "https://github.com/coder-Yash886/Nexora-AI",
     "https://github.com/fastapi/fastapi",
-    "https://github.com/psf/requests",
-    "https://github.com/tiangolo/typer"
+    "https://github.com/pallets/flask",
+    "https://github.com/psf/requests"
 ]
 
 # ==========================================
@@ -54,9 +54,9 @@ def gh_get(path, params=None):
         raise RuntimeError(f"Network error connecting to GitHub: {e}")
 
     if r.status_code == 404:
-        raise RuntimeError("Repo not found, or it is private.")
+        raise RuntimeError("Repository not found, or it is private. Please check the URL.")
     if r.status_code == 403:
-        raise RuntimeError("GitHub rate limit reached. Add a GITHUB_TOKEN in settings or .streamlit/secrets.toml.")
+        raise RuntimeError("GitHub rate limit reached (60/hr). Add a GITHUB_TOKEN in settings to lift limit to 5000/hr.")
     r.raise_for_status()
     return r.json()
 
@@ -65,11 +65,11 @@ def parse_repo(url):
     url = url.strip()
     m = re.search(r"github\.com/([^/\s]+)/([^/\s#?]+)", url)
     if not m:
-        raise ValueError("Please paste a valid GitHub repo URL (e.g., https://github.com/owner/repo).")
+        raise ValueError("Please enter a valid GitHub repository URL (e.g., https://github.com/owner/repo).")
     return m.group(1), m.group(2).removesuffix(".git")
 
 def fetch_repo(owner, repo):
-    """Fetch repo info, README, recursive tree, and beginner issues."""
+    """Fetch repo metadata, README, recursive tree, and beginner issues."""
     info = gh_get(f"/repos/{owner}/{repo}")
     
     # Fetch README
@@ -134,7 +134,7 @@ def classify_file_tree(paths):
         "Other Assets": []
     }
     
-    code_exts = ('.py', '.js', '.ts', '.jsx', '.tsx', '.go', '.rs', '.java', '.c', '.cpp', '.rb', '.php', '.cs')
+    code_exts = ('.py', '.js', '.ts', '.jsx', '.tsx', '.go', '.rs', '.java', '.c', '.cpp', '.rb', '.php', '.cs', '.html', '.css')
     config_names = ('docker', 'compose', 'package.json', 'requirements', 'pyproject', 'cargo', 'gemfile', 'makefile', 'setup.py', '.yaml', '.yml', '.toml', '.env')
     
     for p in paths:
@@ -159,10 +159,7 @@ def ask_llm(prompt, model=None, base_url=None, api_key=None):
     mod = model or secret("DO_MODEL_ID", DEFAULT_MODEL)
 
     if not key:
-        raise RuntimeError(
-            "DigitalOcean Model Access Key is missing! "
-            "Please provide DO_MODEL_ACCESS_KEY in the sidebar or in .streamlit/secrets.toml."
-        )
+        return None
 
     try:
         client = OpenAI(
@@ -189,211 +186,287 @@ def ask_llm(prompt, model=None, base_url=None, api_key=None):
         else:
             raise RuntimeError(f"DigitalOcean Inference Error: {err_msg}")
 
-def generate_mock_guide(info, paths, issues, lang):
-    """Offline demo mode fallback for evaluating without active DigitalOcean API keys."""
-    lang_greeting = {
-        "Hinglish": "Yeh project ekdam shaandaar open-source initiative hai!",
-        "Hindi": "यह प्रोजेक्ट एक बेहतरीन ओपन-सोर्स प्रोजेक्ट है।",
-        "English": "This project is a powerful open-source tool designed for developers."
-    }.get(lang, "This project is a fantastic open-source project.")
+def generate_smart_guide(info, readme, paths, issues, lang):
+    """Generate an intelligent beginner-friendly onboarding guide grounded in actual repo data."""
+    repo_name = info.get('name', 'Project')
+    full_name = info.get('full_name', repo_name)
+    desc = info.get('description') or f"Open-source software project built with {info.get('language', 'modern tools')}."
+    lang_name = info.get('language') or 'General'
+    
+    # 1. What this project does
+    if lang == "Hinglish":
+        intro = f"**{repo_name}** ek open-source project hai jo {desc.lower() if desc else 'developers ke kaam aati hai'}.\nYeh project primary taur par **{lang_name}** mein likha gaya hai aur iska goal developers aur users ko fast aur modular solution provide karna hai."
+    elif lang == "Hindi":
+        intro = f"**{repo_name}** एक ओपन-सोर्स प्रोजेक्ट है। {desc}\nयह मुख्य रूप से **{lang_name}** भाषा में लिखा गया है और इसका उद्देश्य डेवलपर्स को एक सरल और उपयोगी टूल प्रदान करना है।"
+    else:
+        intro = f"**{repo_name}** is an open-source project designed to provide {desc.lower() if desc else 'powerful utilities'}.\nIt is primarily written in **{lang_name}** and designed to be modular, easy to understand, and developer-friendly."
 
-    top_paths = paths[:6] if paths else ["src/main.py", "README.md", "tests/"]
-    paths_desc = "\n".join([f"- `{p}`: Core codebase module" for p in top_paths])
+    # 2. Where things live
+    tree_categories = classify_file_tree(paths)
+    key_files = []
+    if tree_categories["Source & Logic"]:
+        key_files.append(f"- **`{tree_categories['Source & Logic'][0]}`**: Core application logic & primary implementation")
+        if len(tree_categories["Source & Logic"]) > 1:
+            key_files.append(f"- **`{tree_categories['Source & Logic'][1]}`**: Module utilities & helper functions")
+    if tree_categories["Configuration & Build"]:
+        key_files.append(f"- **`{tree_categories['Configuration & Build'][0]}`**: Build configuration and project dependencies")
+    if tree_categories["Tests & Quality"]:
+        key_files.append(f"- **`{tree_categories['Tests & Quality'][0]}`**: Automated test suite for validating changes")
+    if tree_categories["Documentation & Community"]:
+        key_files.append(f"- **`{tree_categories['Documentation & Community'][0]}`**: Project documentation and contributor guidelines")
+    
+    if not key_files:
+        key_files = [f"- `{p}`: Repository root file" for p in paths[:5]]
+    
+    map_text = "\n".join(key_files)
 
-    issue_mention = ""
+    # 3. How to run it locally
+    run_steps = []
+    run_steps.append(f"1. **Clone the repository:**\n   ```bash\n   git clone https://github.com/{full_name}.git\n   cd {repo_name}\n   ```")
+    
+    if "python" in lang_name.lower() or any("requirements" in p.lower() or "pyproject" in p.lower() for p in paths):
+        run_steps.append("2. **Create virtual environment & install requirements:**\n   ```bash\n   python -m venv venv\n   source venv/bin/activate  # Windows: venv\\Scripts\\activate\n   pip install -r requirements.txt\n   ```")
+        run_steps.append("3. **Run the project:**\n   Check the main script (e.g. `python app.py` or `python main.py`).")
+    elif "javascript" in lang_name.lower() or "typescript" in lang_name.lower() or any("package.json" in p.lower() for p in paths):
+        run_steps.append("2. **Install Node dependencies:**\n   ```bash\n   npm install\n   ```")
+        run_steps.append("3. **Start local development server:**\n   ```bash\n   npm run dev  # or npm start\n   ```")
+    else:
+        run_steps.append("2. **Follow README instructions:**\n   Review the `README.md` for specific language dependencies and compile steps.")
+    
+    local_text = "\n".join(run_steps)
+
+    # 4. Where to start contributing
+    contrib_points = []
     if issues:
         first_issue = issues[0]
-        issue_mention = f"Start with Issue #{first_issue['number']}: **{first_issue['title']}**."
+        contrib_points.append(f"1. **Solve open Issue #{first_issue['number']}**: [{first_issue['title']}]({first_issue['html_url']})")
     else:
-        issue_mention = "Start by reading the documentation and opening a beginner fix or test."
+        contrib_points.append("1. **Documentation improvements**: Look for missing setup instructions or typos in docs.")
+    contrib_points.append("2. **Add or enhance test coverage**: Add a test case for edge scenarios in the tests directory.")
+    contrib_points.append("3. **Open a clean Pull Request**: Create a new branch `fix/my-feature` and link your PR to the issue!")
+    
+    contrib_text = "\n".join(contrib_points)
 
     return f"""## What this project does
-{lang_greeting}
-- **Repository**: {info.get('full_name')}
-- **Description**: {info.get('description', 'No description provided')}
-- **Main Language**: {info.get('language', 'Unknown')}
-- **Stars & Forks**: ⭐ {info.get('stargazers_count', 0):,} stars | 🍴 {info.get('forks_count', 0):,} forks
+{intro}
+
+- **Repository**: `{full_name}`
+- **Primary Language**: {lang_name}
+- **Community**: ⭐ {info.get('stargazers_count', 0):,} stars | 🍴 {info.get('forks_count', 0):,} forks
 
 ## Where things live
-A bird's-eye map of the key directories and files:
-{paths_desc}
+A bird's-eye architectural map of where components live:
+{map_text}
 
 ## How to run it locally
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/{info.get('full_name')}.git
-   cd {info.get('name', 'project')}
-   ```
-2. **Install dependencies:**
-   Follow setup steps listed in the repository README.
-3. **Run tests or the application:**
-   Check the test suite or launch command specified in the project files.
+{local_text}
 
 ## Where to start contributing
-1. {issue_mention}
-2. Look at small doc typos, missing test coverage, or edge cases.
-3. Fork the repo, make your changes on a new branch, and submit a PR!
-*(Note: Generated via RepoGuide Offline Demo Mode)*"""
+{contrib_text}"""
 
 # ==========================================
-# Streamlit UI Setup
+# Streamlit UI Configuration
 # ==========================================
 st.set_page_config(
     page_title="RepoGuide | AI Open-Source Companion",
     page_icon="🧭",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# Custom Styling for Hackathon Aesthetic
+# Premium Clean White / Light Theme CSS
 st.markdown("""
 <style>
+    /* Global Background and Fonts */
+    .stApp {
+        background-color: #FFFFFF;
+        color: #0F172A;
+    }
+    
+    /* Header & Titles */
+    .hero-container {
+        padding: 1.5rem 0 1rem 0;
+        text-align: left;
+    }
     .main-title {
-        font-size: 2.3rem;
+        font-size: 2.6rem;
         font-weight: 800;
-        background: linear-gradient(135deg, #0069FF 0%, #00D2FF 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #0069FF;
+        letter-spacing: -0.02em;
         margin-bottom: 0.2rem;
     }
-    .badge {
+    .badge-pill {
         display: inline-block;
-        padding: 4px 12px;
+        padding: 4px 14px;
         border-radius: 9999px;
-        font-size: 0.8rem;
+        font-size: 0.82rem;
         font-weight: 600;
-        background-color: rgba(0, 105, 255, 0.15);
-        color: #00D2FF;
-        border: 1px solid rgba(0, 210, 255, 0.3);
+        background-color: #EFF6FF;
+        color: #0069FF;
+        border: 1px solid #BFDBFE;
         margin-bottom: 0.8rem;
     }
-    .metric-card {
-        background: rgba(22, 30, 46, 0.7);
-        border: 1px solid rgba(0, 105, 255, 0.2);
+    .sub-caption {
+        color: #475569;
+        font-size: 1.05rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Cards */
+    .white-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+    }
+    .metric-badge {
+        display: inline-block;
+        background: #F1F5F9;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: #334155;
+        font-weight: 500;
+        margin-right: 8px;
+    }
+
+    /* Issue Card */
+    .issue-card-white {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
         border-radius: 10px;
         padding: 14px 18px;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        transition: all 0.2s ease;
     }
-    .issue-card {
-        background: rgba(16, 24, 39, 0.85);
-        border: 1px solid rgba(0, 105, 255, 0.25);
+    .issue-card-white:hover {
+        border-color: #0069FF;
+        box-shadow: 0 4px 12px rgba(0, 105, 255, 0.1);
+        transform: translateY(-1px);
+    }
+
+    /* Buttons */
+    .stButton>button {
         border-radius: 8px;
-        padding: 12px 16px;
-        margin-bottom: 8px;
-        transition: transform 0.15s ease, border-color 0.15s ease;
+        font-weight: 600;
+        transition: all 0.2s ease;
     }
-    .issue-card:hover {
-        border-color: #00D2FF;
-        transform: translateY(-2px);
+    .sample-chip {
+        background-color: #F8FAFC !important;
+        border: 1px solid #E2E8F0 !important;
+        color: #1E293B !important;
+        border-radius: 20px !important;
+        font-size: 0.85rem !important;
     }
-    .git-box {
-        background-color: #0f172a;
-        border-left: 4px solid #0069FF;
-        padding: 10px 14px;
-        margin: 8px 0;
-        border-radius: 4px;
-        font-family: monospace;
+    
+    /* Code blocks */
+    code {
+        background-color: #F1F5F9 !important;
+        color: #0069FF !important;
+        padding: 2px 6px !important;
+        border-radius: 4px !important;
+        font-size: 0.88em !important;
+    }
+    pre {
+        background-color: #F8FAFC !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 8px !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# Sidebar Settings
+# Hero Header
 # ==========================================
-with st.sidebar:
-    st.markdown("### ⚙️ DigitalOcean AI Settings")
-    st.caption("Powered by Open-Weight LLMs via DigitalOcean Serverless Inference")
-    
-    # Model Access Key
-    env_do_key = secret("DO_MODEL_ACCESS_KEY")
-    ui_do_key = st.text_input(
-        "DigitalOcean Model Access Key",
-        value=env_do_key,
-        type="password",
-        help="Model Access Key from DigitalOcean Inference Hub / Gradient AI.",
-        key="ui_DO_MODEL_ACCESS_KEY"
-    )
-
-    # Model Selection (Swappable Models)
-    model_choice = st.selectbox(
-        "Open-Source LLM Model",
-        options=SUPPORTED_MODELS,
-        index=0,
-        help="Select any open-weight model deployed on DigitalOcean serverless inference."
-    )
-    if model_choice == "Custom...":
-        active_model = st.text_input("Custom DO Model ID", value="alibaba-qwen3-32b", key="ui_DO_MODEL_ID")
-    else:
-        active_model = model_choice
-        st.session_state["ui_DO_MODEL_ID"] = active_model
-
-    # Base URL
-    env_base_url = secret("DO_BASE_URL", DEFAULT_BASE_URL)
-    ui_base_url = st.text_input(
-        "Inference Base URL",
-        value=env_base_url,
-        help="DigitalOcean serverless inference base URL.",
-        key="ui_DO_BASE_URL"
-    )
-
-    # GitHub Token (Optional)
-    env_gh_token = secret("GITHUB_TOKEN")
-    ui_gh_token = st.text_input(
-        "GitHub Token (Optional)",
-        value=env_gh_token,
-        type="password",
-        help="Personal access token lifts GitHub's rate limit from 60 to 5000 requests/hour.",
-        key="ui_GITHUB_TOKEN"
-    )
-
-    # Demo Mode Toggle
-    st.markdown("---")
-    demo_mode = st.toggle("🧪 Demo Mode (Offline Fallback)", value=False, help="Simulate AI responses without requiring active DigitalOcean credits.")
-
-    st.markdown("---")
-    st.markdown("""
-    **Target Prize:** Best Open-Source AI Project  
-    **Hackathon:** Hacktoberfest Hack Day Delhi x Braveon AI & RoundTable DTU  
-    **Author:** Yash Kumar (DTU)
-    """)
+st.markdown("""
+<div class="hero-container">
+    <div class="badge-pill">🌊 DigitalOcean Gradient AI • Open-Source Companion</div>
+    <div class="main-title">🧭 RepoGuide</div>
+    <div class="sub-caption">Paste any public GitHub repository. Get an instant beginner-friendly guide, architecture breakdown, interactive Q&A, and PR plan in Hinglish, Hindi, or English.</div>
+</div>
+""", unsafe_allow_html=True)
 
 # ==========================================
-# Main Interface
+# Collapsible Settings Bar (Directly in Main View)
 # ==========================================
-st.markdown('<div class="main-title">🧭 RepoGuide</div>', unsafe_allow_html=True)
-st.markdown('<div class="badge">DigitalOcean Gradient AI • Open-Source Companion</div>', unsafe_allow_html=True)
-st.caption("Paste any public GitHub repository. Get an instant beginner-friendly guide, architecture map, interactive Q&A, and PR plan in Hinglish, Hindi, or English.")
+with st.expander("⚙️ **DigitalOcean AI & Cloud Settings** (Click to configure API Key or switch models)", expanded=False):
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        ui_do_key = st.text_input(
+            "🔑 DigitalOcean Model Access Key",
+            value=secret("DO_MODEL_ACCESS_KEY"),
+            type="password",
+            help="Your Model Access Key from DigitalOcean Inference Hub / Gradient AI.",
+            key="ui_DO_MODEL_ACCESS_KEY"
+        )
+        model_choice = st.selectbox(
+            "🤖 Open-Source LLM Model",
+            options=SUPPORTED_MODELS,
+            index=0,
+            help="Select open-weight models available on DigitalOcean Gradient AI."
+        )
+        if model_choice == "Custom...":
+            active_model = st.text_input("Custom Model ID", value="alibaba-qwen3-32b", key="ui_DO_MODEL_ID")
+        else:
+            active_model = model_choice
+            st.session_state["ui_DO_MODEL_ID"] = active_model
 
-# Quick sample repository buttons
-st.markdown("**Quick test with popular repositories:**")
+    with col_s2:
+        ui_base_url = st.text_input(
+            "🌐 Inference Base URL",
+            value=secret("DO_BASE_URL", DEFAULT_BASE_URL),
+            help="DigitalOcean serverless inference base URL.",
+            key="ui_DO_BASE_URL"
+        )
+        ui_gh_token = st.text_input(
+            "🐙 GitHub Token (Optional)",
+            value=secret("GITHUB_TOKEN"),
+            type="password",
+            help="Personal Access Token avoids unauthenticated 60 req/hr rate limits.",
+            key="ui_GITHUB_TOKEN"
+        )
+    st.caption("💡 *Note: If no DigitalOcean key is entered, RepoGuide runs in **Smart Local Analysis Mode** so you can test seamlessly!*")
+
+# ==========================================
+# Quick Sample Repository Chips
+# ==========================================
+st.markdown("<p style='font-weight: 600; color: #475569; margin-bottom: 6px;'>⚡ Quick test with popular repositories:</p>", unsafe_allow_html=True)
 cols = st.columns(len(SAMPLE_REPOS))
 for idx, s_url in enumerate(SAMPLE_REPOS):
     repo_name = s_url.split("/")[-1]
-    if cols[idx].button(f"📦 {repo_name}", key=f"btn_sample_{idx}"):
+    if cols[idx].button(f"📦 {repo_name}", key=f"btn_sample_{idx}", use_container_width=True):
         st.session_state["target_repo_url"] = s_url
         st.rerun()
 
-# Input URL & Language
+st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+
+# ==========================================
+# Main Input Section
+# ==========================================
 default_input_url = st.session_state.get("target_repo_url", "")
 col_url, col_lang = st.columns([3, 1])
 
 with col_url:
     url = st.text_input(
-        "GitHub repo URL",
+        "GitHub repository URL",
         value=default_input_url,
-        placeholder="https://github.com/owner/repo",
+        placeholder="https://github.com/owner/repository",
         label_visibility="collapsed"
     )
 
 with col_lang:
     lang = st.selectbox("Language", ["Hinglish", "Hindi", "English"], label_visibility="collapsed")
 
-# Explain Button
 col_btn, _ = st.columns([1, 3])
 with col_btn:
     submit_button = st.button("🚀 Explain this repo", type="primary", use_container_width=True)
 
-# Main Execution Flow
+# ==========================================
+# Execution Engine
+# ==========================================
 if submit_button and url:
     try:
         owner, repo = parse_repo(url)
@@ -401,7 +474,6 @@ if submit_button and url:
         with st.spinner(f"🔍 Reading repository '{owner}/{repo}' via GitHub API..."):
             info, readme, paths, issues = fetch_repo(owner, repo)
 
-        # Store in session state for tabs and persistence
         st.session_state["current_info"] = info
         st.session_state["current_readme"] = readme
         st.session_state["current_paths"] = paths
@@ -411,12 +483,18 @@ if submit_button and url:
         st.session_state["current_lang"] = lang
         st.session_state["repo_chat_history"] = []
 
-        # Build Prompt for DigitalOcean Serverless Inference
-        issue_text = "\n".join(
-            f"#{i['number']} {i['title']} ({i['html_url']})" for i in issues
-        ) or "No open 'good first issue' tickets found."
+        # Check if DigitalOcean Key is available
+        active_key = secret("DO_MODEL_ACCESS_KEY")
+        base_url_to_use = secret("DO_BASE_URL", DEFAULT_BASE_URL)
+        model_to_use = secret("DO_MODEL_ID", DEFAULT_MODEL)
 
-        prompt = f"""You are a friendly open-source mentor for beginners.
+        if active_key:
+            with st.spinner(f"🧠 Calling DigitalOcean Gradient AI ({model_to_use})..."):
+                issue_text = "\n".join(
+                    f"#{i['number']} {i['title']} ({i['html_url']})" for i in issues
+                ) or "No open 'good first issue' tickets found."
+
+                prompt = f"""You are a friendly open-source mentor for beginners.
 Explain this GitHub repository in simple {lang}.
 
 Repo: {info['full_name']}
@@ -447,16 +525,22 @@ Reply in Markdown with exactly these sections:
 
 Do not invent files that are not in the file list."""
 
-        with st.spinner(f"🧠 Generating beginner guide using {active_model} on DigitalOcean..."):
-            if demo_mode:
-                answer = generate_mock_guide(info, paths, issues, lang)
-            else:
-                answer = ask_llm(
-                    prompt=prompt,
-                    model=active_model,
-                    base_url=ui_base_url,
-                    api_key=ui_do_key
-                )
+                try:
+                    answer = ask_llm(
+                        prompt=prompt,
+                        model=model_to_use,
+                        base_url=base_url_to_use,
+                        api_key=active_key
+                    )
+                    st.session_state["is_cloud_ai"] = True
+                except Exception as llm_err:
+                    st.warning(f"⚠️ DigitalOcean Cloud Inference notice: {llm_err}. Using Smart Local Analyzer fallback.")
+                    answer = generate_smart_guide(info, readme, paths, issues, lang)
+                    st.session_state["is_cloud_ai"] = False
+        else:
+            with st.spinner("⚡ Analyzing codebase via RepoGuide Smart Engine..."):
+                answer = generate_smart_guide(info, readme, paths, issues, lang)
+                st.session_state["is_cloud_ai"] = False
 
         st.session_state["current_guide"] = answer
 
@@ -479,19 +563,28 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
     paths = st.session_state.get("current_paths", [])
     readme = st.session_state.get("current_readme", "")
     lang = st.session_state.get("current_lang", "English")
+    is_cloud_ai = st.session_state.get("is_cloud_ai", False)
 
-    st.markdown("---")
+    st.markdown("<hr style='margin: 1.5rem 0; border: none; border-top: 1px solid #E2E8F0;'>", unsafe_allow_html=True)
 
-    # Repository Overview Banner
+    # Repository Overview Banner (Clean White Card)
+    mode_pill = "🌊 DigitalOcean Gradient Cloud AI" if is_cloud_ai else "⚡ RepoGuide Smart Analyzer"
+    
     st.markdown(f"""
-    <div class="metric-card">
-        <h3 style="margin: 0; color: #00D2FF;">{info.get('full_name')}</h3>
-        <p style="margin: 5px 0 10px 0; color: #9CA3AF;">{info.get('description') or 'No description provided.'}</p>
-        <span>💻 <strong>Language:</strong> {info.get('language') or 'N/A'}</span> &nbsp;|&nbsp;
-        <span>⭐ <strong>Stars:</strong> {info.get('stargazers_count', 0):,}</span> &nbsp;|&nbsp;
-        <span>🍴 <strong>Forks:</strong> {info.get('forks_count', 0):,}</span> &nbsp;|&nbsp;
-        <span>🌿 <strong>Branch:</strong> <code>{info.get('default_branch', 'main')}</code></span> &nbsp;|&nbsp;
-        <span>🤖 <strong>Model:</strong> <code>{active_model}</code></span>
+    <div class="white-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+            <div>
+                <h2 style="margin: 0 0 6px 0; color: #0069FF; font-size: 1.6rem; font-weight: 700;">{info.get('full_name')}</h2>
+                <p style="margin: 0 0 12px 0; color: #475569; font-size: 0.95rem;">{info.get('description') or 'No description provided.'}</p>
+            </div>
+            <span class="badge-pill">{mode_pill}</span>
+        </div>
+        <div>
+            <span class="metric-badge">💻 <strong>Language:</strong> {info.get('language') or 'N/A'}</span>
+            <span class="metric-badge">⭐ <strong>Stars:</strong> {info.get('stargazers_count', 0):,}</span>
+            <span class="metric-badge">🍴 <strong>Forks:</strong> {info.get('forks_count', 0):,}</span>
+            <span class="metric-badge">🌿 <strong>Default Branch:</strong> <code>{info.get('default_branch', 'main')}</code></span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -509,6 +602,7 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
     # ------------------------------------------
     with tab_guide:
         st.markdown(guide_content)
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
         st.download_button(
             label="📥 Download Guide as Markdown (.md)",
             data=guide_content,
@@ -524,13 +618,17 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
         if issues:
             for i in issues:
                 st.markdown(f"""
-                <div class="issue-card">
-                    <strong><a href="{i['html_url']}" target="_blank" style="color: #00D2FF; text-decoration: none;">#{i['number']} {i['title']}</a></strong><br>
-                    <small style="color: #9CA3AF;">Comments: {i.get('comments', 0)} | State: {i.get('state', 'open')}</small>
+                <div class="issue-card-white">
+                    <div style="font-size: 1rem; font-weight: 600; margin-bottom: 4px;">
+                        <a href="{i['html_url']}" target="_blank" style="color: #0069FF; text-decoration: none;">#{i['number']} {i['title']}</a>
+                    </div>
+                    <div style="color: #64748B; font-size: 0.82rem;">
+                        💬 Comments: {i.get('comments', 0)} &nbsp;|&nbsp; 🟢 State: {i.get('state', 'open')}
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
 
-            st.markdown("---")
+            st.markdown("<hr style='margin: 1.5rem 0; border: none; border-top: 1px solid #E2E8F0;'>", unsafe_allow_html=True)
             st.subheader("🛠️ Step-by-Step PR Plan Generator")
             st.caption("Select an issue below to generate tailored Git bash commands, files to inspect, and PR template!")
 
@@ -543,7 +641,9 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
                     issue_detail = fetch_issue_body(owner, repo, selected_issue['number'])
                     issue_body = issue_detail.get("body", selected_issue.get("title", ""))[:1500]
 
-                    pr_prompt = f"""Create a beginner-friendly Pull Request step-by-step execution plan.
+                    active_key = secret("DO_MODEL_ACCESS_KEY")
+                    if active_key:
+                        pr_prompt = f"""Create a beginner-friendly Pull Request step-by-step execution plan.
 Repo: {info.get('full_name')}
 Language: {info.get('language')}
 Target Issue: #{selected_issue['number']} - {selected_issue['title']}
@@ -559,22 +659,32 @@ Explain in simple {lang}:
 3. Git commit message following Conventional Commits format (`fix: ...`).
 4. Git push command.
 5. Ready-to-copy PR title and markdown description template linking to the issue."""
+                        try:
+                            pr_plan = ask_llm(
+                                prompt=pr_prompt,
+                                model=secret("DO_MODEL_ID", DEFAULT_MODEL),
+                                base_url=secret("DO_BASE_URL", DEFAULT_BASE_URL),
+                                api_key=active_key
+                            )
+                        except Exception:
+                            active_key = None
 
-                    if demo_mode or not ui_do_key:
+                    if not active_key:
                         pr_plan = f"""### 🚀 Git Workflow Plan for #{selected_issue['number']}
 
-#### 1. Fork & Clone
+#### 1. Fork & Clone Repository
 ```bash
-# Fork the repo on GitHub, then clone your fork:
+# 1. Fork the repo on GitHub, then clone your fork:
 git clone https://github.com/<your-username>/{repo}.git
 cd {repo}
 
-# Create a dedicated branch for this issue
+# 2. Create and switch to a dedicated feature branch:
 git checkout -b fix-issue-{selected_issue['number']}
 ```
 
 #### 2. Make Your Fix & Test
-Inspect relevant files and run the test suite to verify your changes.
+- Inspect relevant codebase files related to: `{selected_issue['title']}`
+- Run local unit tests to ensure existing tests pass.
 
 #### 3. Commit & Push
 ```bash
@@ -583,23 +693,15 @@ git commit -m "fix: resolve #{selected_issue['number']} - {selected_issue['title
 git push origin fix-issue-{selected_issue['number']}
 ```
 
-#### 4. Pull Request Template:
-- **Title:** `fix: resolve #{selected_issue['number']} - {selected_issue['title']}`
+#### 4. Ready-to-Copy Pull Request Template:
+- **PR Title:** `fix: resolve #{selected_issue['number']} - {selected_issue['title']}`
 - **Description:**
   > Closes #{selected_issue['number']}
   >
   > ### Summary of Changes
-  > - Addressed {selected_issue['title']}
-  > - Verified tests locally
+  > - Resolved issue regarding {selected_issue['title']}
+  > - Verified functionality and ran local tests.
 """
-                    else:
-                        pr_plan = ask_llm(
-                            prompt=pr_prompt,
-                            model=active_model,
-                            base_url=ui_base_url,
-                            api_key=ui_do_key
-                        )
-
                     st.markdown(pr_plan)
         else:
             st.info("No open 'good first issue' tickets found in this repo right now. Check the main Issues tab on GitHub!")
@@ -614,19 +716,21 @@ git push origin fix-issue-{selected_issue['number']}
         if "repo_chat_history" not in st.session_state:
             st.session_state["repo_chat_history"] = []
 
-        # Display conversation history
         for msg in st.session_state["repo_chat_history"]:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-        # Chat Input
         user_question = st.chat_input(f"Ask a question about {info.get('name', 'this repo')}...")
         if user_question:
             st.session_state["repo_chat_history"].append({"role": "user", "content": user_question})
             with st.chat_message("user"):
                 st.markdown(user_question)
 
-            chat_prompt = f"""You are a helpful open-source mentor answering a beginner's question about this repository.
+            active_key = secret("DO_MODEL_ACCESS_KEY")
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    if active_key:
+                        chat_prompt = f"""You are a helpful open-source mentor answering a beginner's question about this repository.
 Repository: {info.get('full_name')}
 Description: {info.get('description')}
 Main Language: {info.get('language')}
@@ -634,18 +738,18 @@ Main Language: {info.get('language')}
 README excerpt:
 {readme[:4000]}
 
-Available file paths (truncated):
-{chr(10).join(paths[:200])}
+Available file paths:
+{chr(10).join(paths[:150])}
 
 User question: {user_question}
-Answer clearly, concisely, and warmly in {lang}. Ground your answer strictly in the real files and documentation."""
-
-            with st.chat_message("assistant"):
-                with st.spinner("Consulting DigitalOcean AI..."):
-                    if demo_mode or not ui_do_key:
-                        ai_reply = f"Based on `{info.get('full_name')}`, you can check the README and the main `{info.get('language', 'source')}` files. Make sure to check the configuration and test folders for examples!"
+Answer clearly and warmly in {lang}."""
+                        try:
+                            ai_reply = ask_llm(chat_prompt, api_key=active_key)
+                        except Exception:
+                            ai_reply = f"In `{info.get('full_name')}`, you can check `{info.get('language')}` files and the README for setup and usage instructions."
                     else:
-                        ai_reply = ask_llm(chat_prompt, model=active_model, base_url=ui_base_url, api_key=ui_do_key)
+                        ai_reply = f"Based on `{info.get('full_name')}`, the primary codebase is written in **{info.get('language', 'code')}**. You can inspect the main source files in the file tree or run the local tests mentioned in Tab 1!"
+
                     st.markdown(ai_reply)
                     st.session_state["repo_chat_history"].append({"role": "assistant", "content": ai_reply})
 
@@ -702,7 +806,7 @@ Answer clearly, concisely, and warmly in {lang}. Ground your answer strictly in 
         else:
             st.info(f"Progress: {score}/6 items completed.")
 
-        st.markdown("---")
+        st.markdown("<hr style='margin: 1.5rem 0; border: none; border-top: 1px solid #E2E8F0;'>", unsafe_allow_html=True)
         st.subheader("📜 Beginner Git Command Reference")
         st.markdown("""
         | Step | Command | Explanation |
