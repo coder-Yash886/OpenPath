@@ -46,7 +46,6 @@ def load_dotenv_file(filepath=".env"):
         except Exception:
             pass
 
-# Load .env variables immediately
 load_dotenv_file()
 
 def secret(name, default=""):
@@ -132,7 +131,6 @@ def fetch_repo(owner, repo):
     except Exception:
         pass
 
-    # Fallback to general open issues if no 'good first issue' label exists
     if not issues:
         try:
             issues_raw = gh_get(
@@ -223,11 +221,11 @@ def generate_smart_guide(info, readme, paths, issues, lang):
     
     # 1. What this project does
     if lang == "Hinglish":
-        intro = f"**{repo_name}** ek open-source project hai: {desc}.\nYeh project primary taur par **{lang_name}** mein build kiya gaya hai aur beginners ke liye explore aur contribute karne ke liye structured hai."
+        intro = f"**{repo_name}** ek powerful open-source project hai: {desc}.\nYeh project primary taur par **{lang_name}** mein build kiya gaya hai aur beginners ke liye explore aur contribute karne ke liye ideal hai."
     elif lang == "Hindi":
-        intro = f"**{repo_name}** एक ओपन-सोर्स प्रोजेक्ट है। {desc}\nयह मुख्य रूप से **{lang_name}** भाषा में लिखा गया है और डेवलपर्स के लिए बहुत उपयोगी है।"
+        intro = f"**{repo_name}** एक बेहतरीन ओपन-सोर्स प्रोजेक्ट है। {desc}\nयह मुख्य रूप से **{lang_name}** भाषा में बनाया गया है और डेवलपर्स के लिए बहुत उपयोगी है।"
     else:
-        intro = f"**{repo_name}** is an open-source project: {desc}.\nIt is primarily engineered in **{lang_name}**, built to be modular, efficient, and developer-friendly."
+        intro = f"**{repo_name}** is a modern open-source project: {desc}.\nIt is primarily engineered in **{lang_name}**, built to be modular, efficient, and developer-friendly."
 
     # 2. Where things live
     tree_categories = classify_file_tree(paths)
@@ -296,14 +294,14 @@ A bird's-eye architectural map of where components live:
 # Streamlit UI Configuration
 # ==========================================
 st.set_page_config(
-    page_title="RepoGuide — AI Open-Source Companion",
-    page_icon="🧭",
+    page_title="Nexora AI / RepoGuide — Open-Source AI Companion",
+    page_icon="✨",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 # ==========================================
-# Premium Design System (Plus Jakarta Sans + DigitalOcean Blue)
+# Premium Design System (Nexora AI Emerald Green + Clean White Aesthetic)
 # ==========================================
 st.markdown("""
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -311,146 +309,231 @@ st.markdown("""
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
-    /* Remove default Streamlit whitespace & header clutter */
+    /* Remove default Streamlit chrome */
     #MainMenu { visibility: hidden; }
     header { visibility: hidden; }
     footer { visibility: hidden; }
     
-    /* Layout Centering & Container Sizing */
+    /* Layout Centering & Responsive Canvas */
     .block-container {
-        max-width: 960px !important;
-        padding-top: 1.8rem !important;
-        padding-bottom: 3.5rem !important;
+        max-width: 1140px !important;
+        padding-top: 1rem !important;
+        padding-bottom: 4rem !important;
         margin: 0 auto !important;
     }
     
-    /* Global Typography */
+    /* Background with soft subtle emerald mesh glow */
     html, body, [class*="css"], .stApp {
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        background-color: #FAFAFA !important;
+        background-color: #FFFFFF !important;
+        background-image: radial-gradient(circle at 10% 12%, rgba(16, 185, 129, 0.08) 0%, transparent 40%), radial-gradient(circle at 90% 85%, rgba(16, 185, 129, 0.04) 0%, transparent 35%) !important;
+        background-attachment: fixed !important;
         color: #0F172A !important;
     }
 
-    /* Headings */
-    h1, h2, h3, h4 {
-        font-family: 'Plus Jakarta Sans', sans-serif !important;
-        font-weight: 700 !important;
-        letter-spacing: -0.02em !important;
-        color: #0F172A !important;
+    /* Top Navigation Bar */
+    .top-navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0 20px 0;
+        border-bottom: 1px solid #F1F5F9;
+        margin-bottom: 30px;
     }
-
-    /* Hero Brand Banner */
-    .brand-hero {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 16px;
-        padding: 24px 28px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
-    }
-    .brand-title {
-        font-size: 2.2rem;
-        font-weight: 800;
-        color: #0069FF;
-        letter-spacing: -0.03em;
-        margin: 6px 0 4px 0;
+    .nav-brand {
         display: flex;
         align-items: center;
         gap: 10px;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #0F172A;
+        text-decoration: none;
     }
-    .brand-subtitle {
+    .brand-logo-icon {
+        width: 32px;
+        height: 32px;
+        background: #10B981;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #FFFFFF;
+        font-size: 18px;
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    }
+    .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+    }
+    .nav-item {
         color: #475569;
-        font-size: 1rem;
-        line-height: 1.5;
-        margin: 0;
+        font-size: 0.92rem;
+        font-weight: 500;
+        text-decoration: none;
+        transition: color 0.15s ease;
     }
-    .pill-badge {
+    .nav-item:hover {
+        color: #059669;
+    }
+    .nav-actions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+    .btn-nav-signin {
+        color: #334155;
+        font-size: 0.92rem;
+        font-weight: 600;
+        text-decoration: none;
+        padding: 8px 14px;
+    }
+    .btn-nav-primary {
+        background-color: #10B981;
+        color: #FFFFFF !important;
+        font-size: 0.92rem;
+        font-weight: 600;
+        padding: 8px 18px;
+        border-radius: 9999px;
+        text-decoration: none;
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        background: #EFF6FF;
-        color: #0069FF;
-        font-size: 0.78rem;
-        font-weight: 700;
-        padding: 4px 12px;
-        border-radius: 9999px;
-        border: 1px solid #BFDBFE;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+        transition: all 0.2s ease;
+    }
+    .btn-nav-primary:hover {
+        background-color: #059669;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
     }
 
-    /* Search & Input Container */
-    .search-card {
+    /* Hero Headline & Elements */
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: #ECFDF5;
+        color: #059669;
+        border: 1px solid #A7F3D0;
+        border-radius: 9999px;
+        padding: 5px 14px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+    }
+    .hero-heading {
+        font-size: 3.1rem;
+        font-weight: 800;
+        line-height: 1.15;
+        letter-spacing: -0.035em;
+        color: #0F172A;
+        margin-bottom: 16px;
+    }
+    .hero-green-text {
+        color: #10B981;
+    }
+    .hero-desc {
+        color: #475569;
+        font-size: 1.08rem;
+        line-height: 1.6;
+        margin-bottom: 24px;
+        max-width: 540px;
+    }
+
+    /* Modern Mockup Frame (Right Side) */
+    .mockup-container {
+        position: relative;
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
-        border-radius: 14px;
-        padding: 18px 22px;
-        margin-bottom: 22px;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.02);
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.02);
     }
-    
-    /* Input Styling */
+    .mockup-inner {
+        background: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 16px;
+    }
+    .mockup-floating-card {
+        background: #0F172A;
+        color: #FFFFFF;
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.82rem;
+        margin-top: 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.3);
+    }
+
+    /* Inputs & Buttons Styling */
     .stTextInput input {
         border-radius: 10px !important;
         border: 1.5px solid #CBD5E1 !important;
-        padding: 10px 14px !important;
+        padding: 11px 16px !important;
         font-size: 0.95rem !important;
         background-color: #FFFFFF !important;
         color: #0F172A !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
         transition: all 0.2s ease !important;
     }
     .stTextInput input:focus {
-        border-color: #0069FF !important;
-        box-shadow: 0 0 0 3px rgba(0, 105, 255, 0.15) !important;
+        border-color: #10B981 !important;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
     }
-
-    /* Selectbox */
     .stSelectbox > div > div {
         border-radius: 10px !important;
         border: 1.5px solid #CBD5E1 !important;
         background-color: #FFFFFF !important;
     }
 
-    /* Buttons */
-    .stButton button {
+    .stButton button[kind="primary"] {
+        background-color: #10B981 !important;
+        color: #FFFFFF !important;
+        border: none !important;
         border-radius: 10px !important;
-        font-weight: 600 !important;
-        font-size: 0.95rem !important;
-        padding: 9px 20px !important;
+        font-weight: 700 !important;
+        padding: 11px 24px !important;
+        font-size: 1rem !important;
+        box-shadow: 0 3px 10px rgba(16, 185, 129, 0.3) !important;
         transition: all 0.2s ease !important;
     }
-    .stButton button[kind="primary"] {
-        background-color: #0069FF !important;
-        border: none !important;
-        box-shadow: 0 2px 8px rgba(0, 105, 255, 0.25) !important;
-    }
     .stButton button[kind="primary"]:hover {
-        background-color: #0050D8 !important;
-        box-shadow: 0 4px 12px rgba(0, 105, 255, 0.35) !important;
-        transform: translateY(-1px);
+        background-color: #059669 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
     }
+
     .stButton button[kind="secondary"] {
         background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
         color: #334155 !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
     }
     .stButton button[kind="secondary"]:hover {
-        border-color: #0069FF !important;
-        color: #0069FF !important;
-        background-color: #F8FAFC !important;
+        border-color: #10B981 !important;
+        color: #059669 !important;
+        background-color: #ECFDF5 !important;
     }
 
-    /* Modern Tabs */
+    /* Tabs Styling */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 6px !important;
+        gap: 8px !important;
         background-color: #F1F5F9 !important;
-        padding: 5px !important;
+        padding: 6px !important;
         border-radius: 12px !important;
         border: 1px solid #E2E8F0 !important;
-        margin-bottom: 1.2rem !important;
+        margin-bottom: 1.5rem !important;
     }
     .stTabs [data-baseweb="tab"] {
         border-radius: 8px !important;
-        padding: 8px 16px !important;
-        font-size: 0.88rem !important;
+        padding: 8px 18px !important;
+        font-size: 0.9rem !important;
         font-weight: 600 !important;
         color: #475569 !important;
         border: none !important;
@@ -459,135 +542,205 @@ st.markdown("""
     }
     .stTabs [aria-selected="true"] {
         background-color: #FFFFFF !important;
-        color: #0069FF !important;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08) !important;
+        color: #059669 !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
     }
 
-    /* Content Cards */
-    .content-box {
+    /* Result Cards */
+    .white-card {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
-        border-radius: 14px;
-        padding: 22px 26px;
-        margin-bottom: 16px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        border-radius: 16px;
+        padding: 24px 28px;
+        margin-bottom: 18px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
     }
-    
-    /* Code font */
-    code, pre {
-        font-family: 'JetBrains Mono', monospace !important;
-    }
-    code {
-        background-color: #F1F5F9 !important;
-        color: #0069FF !important;
-        padding: 2px 6px !important;
-        border-radius: 5px !important;
-        font-size: 0.85em !important;
-    }
-    
-    /* Issues Cards */
-    .clean-issue-card {
+    .issue-card-clean {
         background: #FFFFFF;
         border: 1px solid #E2E8F0;
-        border-radius: 10px;
-        padding: 14px 18px;
+        border-radius: 12px;
+        padding: 16px 20px;
         margin-bottom: 10px;
         transition: all 0.2s ease;
     }
-    .clean-issue-card:hover {
-        border-color: #0069FF;
-        box-shadow: 0 3px 10px rgba(0, 105, 255, 0.08);
+    .issue-card-clean:hover {
+        border-color: #10B981;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.1);
         transform: translateY(-1px);
+    }
+
+    code {
+        font-family: 'JetBrains Mono', monospace !important;
+        background-color: #ECFDF5 !important;
+        color: #059669 !important;
+        padding: 2px 6px !important;
+        border-radius: 5px !important;
+        font-size: 0.88em !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# Hero Header
+# Top Navigation Bar (Exact Match to Reference Design)
 # ==========================================
 st.markdown("""
-<div class="brand-hero">
-    <div class="pill-badge">
-        <span>🌊 DigitalOcean Gradient AI</span>
-        <span>•</span>
-        <span>Open-Source Companion</span>
+<div class="top-navbar">
+    <div class="nav-brand">
+        <div class="brand-logo-icon">✨</div>
+        <span>Nexora AI</span>
+        <span style="font-size: 0.75rem; color: #10B981; background: #ECFDF5; padding: 2px 8px; border-radius: 6px; font-weight: 700; border: 1px solid #A7F3D0;">RepoGuide</span>
     </div>
-    <div class="brand-title">🧭 RepoGuide</div>
-    <p class="brand-subtitle">
-        Paste any public GitHub repository. Get an instant, structured onboarding guide, architecture map, interactive mentor Q&A, and Pull Request plan in <strong>Hinglish</strong>, <strong>Hindi</strong>, or <strong>English</strong>.
-    </p>
+    <div class="nav-links">
+        <a href="#demo" class="nav-item">Demo</a>
+        <a href="#features" class="nav-item">Features</a>
+        <a href="#product" class="nav-item">Product</a>
+        <a href="#how-it-works" class="nav-item">How it works</a>
+        <a href="#contact" class="nav-item">Contact</a>
+    </div>
+    <div class="nav-actions">
+        <span class="btn-nav-signin">DigitalOcean AI</span>
+        <a href="https://github.com/coder-Yash886/OpenPath" target="_blank" class="btn-nav-primary">
+            Get started <span>→</span>
+        </a>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# Quick Test Repository Chips
+# Hero Section (2-Column Layout matching Reference)
 # ==========================================
-st.markdown("<p style='font-size: 0.88rem; font-weight: 700; color: #475569; margin-bottom: 8px;'>⚡ One-Click Popular Repositories:</p>", unsafe_allow_html=True)
-c_cols = st.columns(len(SAMPLE_REPOS))
-for idx, (label, s_url) in enumerate(SAMPLE_REPOS):
-    if c_cols[idx].button(f"📦 {label}", key=f"chip_{idx}", use_container_width=True):
-        st.session_state["target_repo_url"] = s_url
-        st.rerun()
+col_hero_left, col_hero_right = st.columns([1.15, 0.85], gap="large")
 
-st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
+with col_hero_left:
+    st.markdown("""
+    <div class="hero-badge">
+        <span>⚡</span>
+        <span>AI-powered open-source onboarding</span>
+    </div>
+    <div class="hero-heading">
+        Contribute smarter with<br>
+        <span class="hero-green-text">custom AI agents</span>
+    </div>
+    <p class="hero-desc">
+        RepoGuide combines DigitalOcean Gradient AI, recursive code mapping, and live issue triage so your team and beginners understand any codebase in under a minute—not hours.
+    </p>
+    """, unsafe_allow_html=True)
 
-# ==========================================
-# Main Input Section
-# ==========================================
-default_url = st.session_state.get("target_repo_url", "")
-col_input, col_lang = st.columns([3, 1])
+    # Input Bar inside Hero
+    default_url = st.session_state.get("target_repo_url", "")
+    col_in, col_lg = st.columns([2.8, 1.2])
+    with col_in:
+        url = st.text_input(
+            "GitHub repository URL",
+            value=default_url,
+            placeholder="https://github.com/owner/repository",
+            label_visibility="collapsed"
+        )
+    with col_lg:
+        lang = st.selectbox("Language", ["Hinglish", "Hindi", "English"], label_visibility="collapsed")
 
-with col_input:
-    url = st.text_input(
-        "GitHub repository URL",
-        value=default_url,
-        placeholder="https://github.com/owner/repository",
-        label_visibility="collapsed"
-    )
+    # CTA Buttons (Matching Reference Design)
+    col_cta1, col_cta2 = st.columns([1.2, 1])
+    with col_cta1:
+        submit_button = st.button("Start for free →", type="primary", use_container_width=True)
+    with col_cta2:
+        if st.button("Watch Nexora demo", type="secondary", use_container_width=True):
+            st.session_state["target_repo_url"] = "https://github.com/coder-Yash886/Nexora-AI"
+            st.rerun()
 
-with col_lang:
-    lang = st.selectbox("Language", ["Hinglish", "Hindi", "English"], label_visibility="collapsed")
+    # Features Tag Row
+    st.markdown("""
+    <div style="display: flex; gap: 20px; color: #64748B; font-size: 0.86rem; font-weight: 500; margin-top: 18px;">
+        <span>Custom AI agents</span>
+        <span>•</span>
+        <span>Live repository tree</span>
+        <span>•</span>
+        <span>Instant PR summaries</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-col_btn, col_expand = st.columns([1, 2])
-with col_btn:
-    submit_button = st.button("🚀 Explain this repo", type="primary", use_container_width=True)
+with col_hero_right:
+    # Modern Mockup Card (matching Reference Design mockup screenshot)
+    st.markdown("""
+    <div class="mockup-container">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 10px; height: 10px; border-radius: 50%; background: #EF4444; display: inline-block;"></span>
+                <span style="width: 10px; height: 10px; border-radius: 50%; background: #F59E0B; display: inline-block;"></span>
+                <span style="width: 10px; height: 10px; border-radius: 50%; background: #10B981; display: inline-block;"></span>
+            </div>
+            <span style="font-size: 0.78rem; font-weight: 700; color: #10B981; background: #ECFDF5; padding: 2px 10px; border-radius: 9999px;">● DigitalOcean Inference Active</span>
+        </div>
+        <div class="mockup-inner">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-weight: 700; font-size: 0.95rem; color: #0F172A;">🧭 RepoGuide Dashboard</span>
+                <span style="font-size: 0.75rem; color: #64748B;">v2.0 • Gradient AI</span>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; font-size: 0.82rem; margin-bottom: 8px;">
+                <div style="color: #059669; font-weight: 600;">✓ Repository Map Generated</div>
+                <div style="color: #64748B;">250 files parsed • 4 core modules mapped</div>
+            </div>
+            <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; font-size: 0.82rem;">
+                <div style="color: #0284C7; font-weight: 600;">🎯 Live Beginner Issues</div>
+                <div style="color: #64748B;">Open 'good first issue' tickets detected</div>
+            </div>
+        </div>
+        <div class="mockup-floating-card">
+            <span>✨</span>
+            <span>AI Mentor: Ready to guide your first Pull Request</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-with col_expand:
-    with st.expander("⚙️ Cloud Model & Key Settings", expanded=False):
-        c_k1, c_k2 = st.columns(2)
-        with c_k1:
-            ui_do_key = st.text_input(
-                "DigitalOcean Model Access Key",
-                value=secret("DO_MODEL_ACCESS_KEY"),
-                type="password",
-                help="Your Model Access Key from DigitalOcean Inference Hub / Gradient AI.",
-                key="ui_DO_MODEL_ACCESS_KEY"
-            )
-            model_choice = st.selectbox(
-                "Model",
-                options=SUPPORTED_MODELS,
-                index=0,
-                key="model_select"
-            )
-            if model_choice == "Custom...":
-                active_model = st.text_input("Custom Model ID", value="alibaba-qwen3-32b", key="ui_DO_MODEL_ID")
-            else:
-                active_model = model_choice
-                st.session_state["ui_DO_MODEL_ID"] = active_model
+# Quick Sample Repository Chips Row
+st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+col_chips_label, col_chips_items = st.columns([1, 4])
+with col_chips_label:
+    st.markdown("<p style='font-size: 0.88rem; font-weight: 700; color: #475569; margin-top: 6px;'>Quick Test Repos:</p>", unsafe_allow_html=True)
 
-        with c_k2:
-            ui_base_url = st.text_input(
-                "Inference Base URL",
-                value=secret("DO_BASE_URL", DEFAULT_BASE_URL),
-                key="ui_DO_BASE_URL"
-            )
-            ui_gh_token = st.text_input(
-                "GitHub Token (Optional)",
-                value=secret("GITHUB_TOKEN"),
-                type="password",
-                key="ui_GITHUB_TOKEN"
-            )
-        st.caption("✨ *Runs automatically in Smart Local Analysis mode if key is omitted.*")
+with col_chips_items:
+    c_cols = st.columns(len(SAMPLE_REPOS))
+    for idx, (label, s_url) in enumerate(SAMPLE_REPOS):
+        if c_cols[idx].button(f"📦 {label}", key=f"chip_{idx}", use_container_width=True):
+            st.session_state["target_repo_url"] = s_url
+            st.rerun()
+
+# Cloud Settings Collapsible Bar
+with st.expander("⚙️ **DigitalOcean AI & Credentials Settings** (Click to enter key or select open model)", expanded=False):
+    c_k1, c_k2 = st.columns(2)
+    with c_k1:
+        ui_do_key = st.text_input(
+            "DigitalOcean Model Access Key",
+            value=secret("DO_MODEL_ACCESS_KEY"),
+            type="password",
+            help="Your Model Access Key from DigitalOcean Inference Hub / Gradient AI.",
+            key="ui_DO_MODEL_ACCESS_KEY"
+        )
+        model_choice = st.selectbox(
+            "Open-Source Model",
+            options=SUPPORTED_MODELS,
+            index=0,
+            key="model_select"
+        )
+        if model_choice == "Custom...":
+            active_model = st.text_input("Custom Model ID", value="alibaba-qwen3-32b", key="ui_DO_MODEL_ID")
+        else:
+            active_model = model_choice
+            st.session_state["ui_DO_MODEL_ID"] = active_model
+
+    with c_k2:
+        ui_base_url = st.text_input(
+            "Inference Base URL",
+            value=secret("DO_BASE_URL", DEFAULT_BASE_URL),
+            key="ui_DO_BASE_URL"
+        )
+        ui_gh_token = st.text_input(
+            "GitHub Token (Optional)",
+            value=secret("GITHUB_TOKEN"),
+            type="password",
+            key="ui_GITHUB_TOKEN"
+        )
+    st.caption("✨ *Note: Automatically runs in Smart Local Analyzer mode if no key is entered.*")
 
 # ==========================================
 # Execution Engine
@@ -596,7 +749,7 @@ if submit_button and url:
     try:
         owner, repo = parse_repo(url)
         
-        with st.spinner(f"🔍 Inspecting repository '{owner}/{repo}' via GitHub API..."):
+        with st.spinner(f"🔍 Reading repository '{owner}/{repo}' via GitHub API..."):
             info, readme, paths, issues = fetch_repo(owner, repo)
 
         st.session_state["current_info"] = info
@@ -613,7 +766,7 @@ if submit_button and url:
         model_to_use = secret("DO_MODEL_ID", DEFAULT_MODEL)
 
         if active_key:
-            with st.spinner(f"🧠 Generating guide via DigitalOcean Gradient AI ({model_to_use})..."):
+            with st.spinner(f"🧠 Calling DigitalOcean Gradient AI ({model_to_use})..."):
                 issue_text = "\n".join(
                     f"#{i['number']} {i['title']} ({i['html_url']})" for i in issues
                 ) or "No open 'good first issue' tickets found."
@@ -662,7 +815,7 @@ Do not invent files that are not in the file list."""
                     answer = generate_smart_guide(info, readme, paths, issues, lang)
                     st.session_state["is_cloud_ai"] = False
         else:
-            with st.spinner("⚡ Generating guide via RepoGuide Smart Engine..."):
+            with st.spinner("⚡ Analyzing codebase via RepoGuide Smart Engine..."):
                 answer = generate_smart_guide(info, readme, paths, issues, lang)
                 st.session_state["is_cloud_ai"] = False
 
@@ -689,25 +842,25 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
     lang = st.session_state.get("current_lang", "English")
     is_cloud_ai = st.session_state.get("is_cloud_ai", False)
 
-    st.markdown("<hr style='margin: 1.5rem 0 1rem 0; border: none; border-top: 1px solid #E2E8F0;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 2rem 0 1.5rem 0; border: none; border-top: 1px solid #E2E8F0;'>", unsafe_allow_html=True)
 
-    # Repository Overview Banner
+    # Repository Overview Banner (Matching Clean Nexora Card)
     mode_text = "🌊 DigitalOcean Gradient AI" if is_cloud_ai else "⚡ RepoGuide Smart Analyzer"
     
     st.markdown(f"""
-    <div class="content-box">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+    <div class="white-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
             <div>
-                <h2 style="margin: 0 0 4px 0; color: #0069FF; font-size: 1.5rem; font-weight: 800;">{info.get('full_name')}</h2>
-                <p style="margin: 0 0 12px 0; color: #475569; font-size: 0.95rem;">{info.get('description') or 'No description provided.'}</p>
+                <h2 style="margin: 0 0 6px 0; color: #0F172A; font-size: 1.65rem; font-weight: 800;">{info.get('full_name')}</h2>
+                <p style="margin: 0 0 14px 0; color: #475569; font-size: 0.98rem;">{info.get('description') or 'No description provided.'}</p>
             </div>
-            <div class="pill-badge">{mode_text}</div>
+            <div style="background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; padding: 5px 14px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700;">{mode_text}</div>
         </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
-            <span style="background: #F1F5F9; padding: 4px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; color: #334155;">💻 {info.get('language') or 'General'}</span>
-            <span style="background: #F1F5F9; padding: 4px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; color: #334155;">⭐ {info.get('stargazers_count', 0):,} stars</span>
-            <span style="background: #F1F5F9; padding: 4px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; color: #334155;">🍴 {info.get('forks_count', 0):,} forks</span>
-            <span style="background: #F1F5F9; padding: 4px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; color: #334155;">🌿 {info.get('default_branch', 'main')}</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">💻 {info.get('language') or 'General'}</span>
+            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">⭐ {info.get('stargazers_count', 0):,} stars</span>
+            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">🍴 {info.get('forks_count', 0):,} forks</span>
+            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">🌿 {info.get('default_branch', 'main')}</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -742,11 +895,11 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
         if issues:
             for i in issues:
                 st.markdown(f"""
-                <div class="clean-issue-card">
-                    <div style="font-size: 0.98rem; font-weight: 700; margin-bottom: 4px;">
-                        <a href="{i['html_url']}" target="_blank" style="color: #0069FF; text-decoration: none;">#{i['number']} {i['title']}</a>
+                <div class="issue-card-clean">
+                    <div style="font-size: 1rem; font-weight: 700; margin-bottom: 4px;">
+                        <a href="{i['html_url']}" target="_blank" style="color: #10B981; text-decoration: none;">#{i['number']} {i['title']}</a>
                     </div>
-                    <div style="color: #64748B; font-size: 0.82rem;">
+                    <div style="color: #64748B; font-size: 0.84rem;">
                         💬 {i.get('comments', 0)} comments &nbsp;•&nbsp; 🟢 State: {i.get('state', 'open')}
                     </div>
                 </div>
