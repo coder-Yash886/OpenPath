@@ -32,7 +32,6 @@ SAMPLE_REPOS = [
 # ==========================================
 def secret(name, default=""):
     """Fetch secret from Streamlit secrets, environment, or session state."""
-    # Check session state override first (from UI settings)
     if f"ui_{name}" in st.session_state and st.session_state[f"ui_{name}"]:
         return st.session_state[f"ui_{name}"]
     try:
@@ -99,9 +98,8 @@ def fetch_repo(owner, repo):
     try:
         issues_raw = gh_get(
             f"/repos/{owner}/{repo}/issues",
-            {"labels": "good first issue", "state": "open", "per_page": 5},
+            {"labels": "good first issue", "state": "open", "per_page": 6},
         )
-        # Exclude Pull Requests
         issues = [i for i in issues_raw if "pull_request" not in i]
     except Exception:
         pass
@@ -111,13 +109,48 @@ def fetch_repo(owner, repo):
         try:
             issues_raw = gh_get(
                 f"/repos/{owner}/{repo}/issues",
-                {"state": "open", "per_page": 5},
+                {"state": "open", "per_page": 6},
             )
             issues = [i for i in issues_raw if "pull_request" not in i]
         except Exception:
             pass
 
     return info, readme, paths, issues
+
+def fetch_issue_body(owner, repo, issue_number):
+    """Fetch complete issue details including description and labels."""
+    try:
+        return gh_get(f"/repos/{owner}/{repo}/issues/{issue_number}")
+    except Exception:
+        return {}
+
+def classify_file_tree(paths):
+    """Categorize repository file paths for intuitive architecture browsing."""
+    categories = {
+        "Source & Logic": [],
+        "Configuration & Build": [],
+        "Tests & Quality": [],
+        "Documentation & Community": [],
+        "Other Assets": []
+    }
+    
+    code_exts = ('.py', '.js', '.ts', '.jsx', '.tsx', '.go', '.rs', '.java', '.c', '.cpp', '.rb', '.php', '.cs')
+    config_names = ('docker', 'compose', 'package.json', 'requirements', 'pyproject', 'cargo', 'gemfile', 'makefile', 'setup.py', '.yaml', '.yml', '.toml', '.env')
+    
+    for p in paths:
+        low = p.lower()
+        if 'test' in low or 'spec' in low:
+            categories["Tests & Quality"].append(p)
+        elif 'doc' in low or 'readme' in low or 'contributing' in low or 'license' in low:
+            categories["Documentation & Community"].append(p)
+        elif any(cfg in low for cfg in config_names):
+            categories["Configuration & Build"].append(p)
+        elif low.endswith(code_exts):
+            categories["Source & Logic"].append(p)
+        else:
+            categories["Other Assets"].append(p)
+            
+    return categories
 
 def ask_llm(prompt, model=None, base_url=None, api_key=None):
     """Query open-weight LLM on DigitalOcean Gradient Serverless Inference."""
@@ -145,7 +178,6 @@ def ask_llm(prompt, model=None, base_url=None, api_key=None):
             temperature=0.3,
         )
         text = resp.choices[0].message.content or ""
-        # Strip any hidden reasoning text some models add (e.g. DeepSeek/Qwen think tags)
         cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.S).strip()
         return cleaned
     except Exception as e:
@@ -180,7 +212,7 @@ def generate_mock_guide(info, paths, issues, lang):
 - **Repository**: {info.get('full_name')}
 - **Description**: {info.get('description', 'No description provided')}
 - **Main Language**: {info.get('language', 'Unknown')}
-- **Stars & Forks**: ⭐ {info.get('stargazers_count', 0)} stars | 🍴 {info.get('forks_count', 0)} forks
+- **Stars & Forks**: ⭐ {info.get('stargazers_count', 0):,} stars | 🍴 {info.get('forks_count', 0):,} forks
 
 ## Where things live
 A bird's-eye map of the key directories and files:
@@ -217,7 +249,7 @@ st.set_page_config(
 st.markdown("""
 <style>
     .main-title {
-        font-size: 2.4rem;
+        font-size: 2.3rem;
         font-weight: 800;
         background: linear-gradient(135deg, #0069FF 0%, #00D2FF 100%);
         -webkit-background-clip: text;
@@ -233,13 +265,13 @@ st.markdown("""
         background-color: rgba(0, 105, 255, 0.15);
         color: #00D2FF;
         border: 1px solid rgba(0, 210, 255, 0.3);
-        margin-bottom: 1rem;
+        margin-bottom: 0.8rem;
     }
     .metric-card {
         background: rgba(22, 30, 46, 0.7);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(0, 105, 255, 0.2);
         border-radius: 10px;
-        padding: 12px 18px;
+        padding: 14px 18px;
         margin-bottom: 15px;
     }
     .issue-card {
@@ -253,6 +285,14 @@ st.markdown("""
     .issue-card:hover {
         border-color: #00D2FF;
         transform: translateY(-2px);
+    }
+    .git-box {
+        background-color: #0f172a;
+        border-left: 4px solid #0069FF;
+        padding: 10px 14px;
+        margin: 8px 0;
+        border-radius: 4px;
+        font-family: monospace;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -274,7 +314,7 @@ with st.sidebar:
         key="ui_DO_MODEL_ACCESS_KEY"
     )
 
-    # Model Selection (Extra Feature: Swappable Models)
+    # Model Selection (Swappable Models)
     model_choice = st.selectbox(
         "Open-Source LLM Model",
         options=SUPPORTED_MODELS,
@@ -322,7 +362,7 @@ with st.sidebar:
 # ==========================================
 st.markdown('<div class="main-title">🧭 RepoGuide</div>', unsafe_allow_html=True)
 st.markdown('<div class="badge">DigitalOcean Gradient AI • Open-Source Companion</div>', unsafe_allow_html=True)
-st.caption("Paste any public GitHub repository. Get an instant beginner-friendly guide and contribution map in Hinglish, Hindi, or English.")
+st.caption("Paste any public GitHub repository. Get an instant beginner-friendly guide, architecture map, interactive Q&A, and PR plan in Hinglish, Hindi, or English.")
 
 # Quick sample repository buttons
 st.markdown("**Quick test with popular repositories:**")
@@ -349,7 +389,7 @@ with col_lang:
     lang = st.selectbox("Language", ["Hinglish", "Hindi", "English"], label_visibility="collapsed")
 
 # Explain Button
-col_btn, _ = st.columns([1, 4])
+col_btn, _ = st.columns([1, 3])
 with col_btn:
     submit_button = st.button("🚀 Explain this repo", type="primary", use_container_width=True)
 
@@ -361,24 +401,15 @@ if submit_button and url:
         with st.spinner(f"🔍 Reading repository '{owner}/{repo}' via GitHub API..."):
             info, readme, paths, issues = fetch_repo(owner, repo)
 
-        # Store in session state for PR plan generator and persistence
+        # Store in session state for tabs and persistence
         st.session_state["current_info"] = info
+        st.session_state["current_readme"] = readme
         st.session_state["current_paths"] = paths
         st.session_state["current_issues"] = issues
         st.session_state["current_owner"] = owner
         st.session_state["current_repo"] = repo
-
-        # Display Repo Overview Metrics
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3 style="margin: 0; color: #00D2FF;">{info.get('full_name')}</h3>
-            <p style="margin: 5px 0 10px 0; color: #9CA3AF;">{info.get('description') or 'No description provided.'}</p>
-            <span>💻 <strong>Language:</strong> {info.get('language') or 'N/A'}</span> &nbsp;|&nbsp;
-            <span>⭐ <strong>Stars:</strong> {info.get('stargazers_count', 0):,}</span> &nbsp;|&nbsp;
-            <span>🍴 <strong>Forks:</strong> {info.get('forks_count', 0):,}</span> &nbsp;|&nbsp;
-            <span>🌿 <strong>Default Branch:</strong> <code>{info.get('default_branch', 'main')}</code></span>
-        </div>
-        """, unsafe_allow_html=True)
+        st.session_state["current_lang"] = lang
+        st.session_state["repo_chat_history"] = []
 
         # Build Prompt for DigitalOcean Serverless Inference
         issue_text = "\n".join(
@@ -437,7 +468,7 @@ Do not invent files that are not in the file list."""
         st.error(f"❌ Unexpected Error: {str(e)}")
 
 # ==========================================
-# Display Generated Guide & Actions
+# Display Tabs Interface
 # ==========================================
 if "current_guide" in st.session_state and st.session_state["current_guide"]:
     guide_content = st.session_state["current_guide"]
@@ -445,72 +476,101 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
     owner = st.session_state.get("current_owner", "")
     repo = st.session_state.get("current_repo", "")
     info = st.session_state.get("current_info", {})
+    paths = st.session_state.get("current_paths", [])
+    readme = st.session_state.get("current_readme", "")
+    lang = st.session_state.get("current_lang", "English")
 
     st.markdown("---")
-    st.markdown(guide_content)
 
-    # Download / Export Button (Extra Feature)
-    st.download_button(
-        label="📥 Download Guide as Markdown (.md)",
-        data=guide_content,
-        file_name=f"{owner}_{repo}_repoguide.md",
-        mime="text/markdown"
-    )
+    # Repository Overview Banner
+    st.markdown(f"""
+    <div class="metric-card">
+        <h3 style="margin: 0; color: #00D2FF;">{info.get('full_name')}</h3>
+        <p style="margin: 5px 0 10px 0; color: #9CA3AF;">{info.get('description') or 'No description provided.'}</p>
+        <span>💻 <strong>Language:</strong> {info.get('language') or 'N/A'}</span> &nbsp;|&nbsp;
+        <span>⭐ <strong>Stars:</strong> {info.get('stargazers_count', 0):,}</span> &nbsp;|&nbsp;
+        <span>🍴 <strong>Forks:</strong> {info.get('forks_count', 0):,}</span> &nbsp;|&nbsp;
+        <span>🌿 <strong>Branch:</strong> <code>{info.get('default_branch', 'main')}</code></span> &nbsp;|&nbsp;
+        <span>🤖 <strong>Model:</strong> <code>{active_model}</code></span>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Clickable Open Issues Section
-    st.markdown("---")
-    st.subheader("🎯 Open Good First Issues")
-    if issues:
-        for i in issues:
-            st.markdown(f"""
-            <div class="issue-card">
-                <strong><a href="{i['html_url']}" target="_blank" style="color: #00D2FF; text-decoration: none;">#{i['number']} {i['title']}</a></strong><br>
-                <small style="color: #9CA3AF;">Comments: {i.get('comments', 0)} | State: {i.get('state', 'open')}</small>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.info("No open 'good first issue' tickets found in this repo right now. Check the main Issues tab on GitHub!")
+    # Interactive Navigation Tabs
+    tab_guide, tab_issues, tab_chat, tab_tree, tab_checklist = st.tabs([
+        "🧭 Beginner Guide",
+        "🎯 Good First Issues & PR Plan",
+        "💬 Ask RepoGuide AI",
+        "🌳 File Tree & Architecture",
+        "✅ Pre-PR Checklist & Git Guide"
+    ])
 
-    # ==========================================
-    # Optional Extra: Generate My First PR Plan
-    # ==========================================
-    st.markdown("---")
-    st.subheader("🛠️ Step-by-Step PR Plan Generator")
-    st.caption("Pick an issue or task to generate step-by-step Git bash commands and a Pull Request template!")
+    # ------------------------------------------
+    # TAB 1: Beginner Guide
+    # ------------------------------------------
+    with tab_guide:
+        st.markdown(guide_content)
+        st.download_button(
+            label="📥 Download Guide as Markdown (.md)",
+            data=guide_content,
+            file_name=f"{owner}_{repo}_repoguide.md",
+            mime="text/markdown"
+        )
 
-    if issues:
-        issue_options = {f"#{i['number']} - {i['title']}": i for i in issues}
-        selected_issue_title = st.selectbox("Select an issue to work on:", list(issue_options.keys()))
-        selected_issue = issue_options[selected_issue_title]
+    # ------------------------------------------
+    # TAB 2: Good First Issues & PR Plan Generator
+    # ------------------------------------------
+    with tab_issues:
+        st.subheader("🎯 Open Good First Issues")
+        if issues:
+            for i in issues:
+                st.markdown(f"""
+                <div class="issue-card">
+                    <strong><a href="{i['html_url']}" target="_blank" style="color: #00D2FF; text-decoration: none;">#{i['number']} {i['title']}</a></strong><br>
+                    <small style="color: #9CA3AF;">Comments: {i.get('comments', 0)} | State: {i.get('state', 'open')}</small>
+                </div>
+                """, unsafe_allow_html=True)
 
-        if st.button("📝 Generate My First PR Plan", key="btn_pr_plan"):
-            with st.spinner("Generating step-by-step Git instructions and PR draft..."):
-                pr_prompt = f"""Create a beginner-friendly Pull Request step-by-step execution plan.
+            st.markdown("---")
+            st.subheader("🛠️ Step-by-Step PR Plan Generator")
+            st.caption("Select an issue below to generate tailored Git bash commands, files to inspect, and PR template!")
+
+            issue_options = {f"#{i['number']} - {i['title']}": i for i in issues}
+            selected_issue_title = st.selectbox("Choose issue to work on:", list(issue_options.keys()))
+            selected_issue = issue_options[selected_issue_title]
+
+            if st.button("📝 Generate My First PR Plan", key="btn_pr_plan"):
+                with st.spinner("Fetching full issue context and drafting PR strategy..."):
+                    issue_detail = fetch_issue_body(owner, repo, selected_issue['number'])
+                    issue_body = issue_detail.get("body", selected_issue.get("title", ""))[:1500]
+
+                    pr_prompt = f"""Create a beginner-friendly Pull Request step-by-step execution plan.
 Repo: {info.get('full_name')}
+Language: {info.get('language')}
 Target Issue: #{selected_issue['number']} - {selected_issue['title']}
-URL: {selected_issue['html_url']}
-Main Language: {info.get('language')}
+Issue Description:
+{issue_body}
 
-Provide:
+Files in repo:
+{chr(10).join(paths[:150])}
+
+Explain in simple {lang}:
 1. Exact Git commands to fork, clone, create a feature branch (`fix-issue-{selected_issue['number']}`), and install dependencies.
-2. Suggested files to explore and inspect.
-3. Git commit message following Conventional Commits format.
+2. Suggested files in the repo to explore based on the issue description.
+3. Git commit message following Conventional Commits format (`fix: ...`).
 4. Git push command.
 5. Ready-to-copy PR title and markdown description template linking to the issue."""
 
-                if st.session_state.get("demo_mode", False) or not ui_do_key:
-                    pr_plan = f"""### 🚀 Git Workflow Plan for #{selected_issue['number']}
+                    if demo_mode or not ui_do_key:
+                        pr_plan = f"""### 🚀 Git Workflow Plan for #{selected_issue['number']}
 
-#### 1. Terminal Commands:
+#### 1. Fork & Clone
 ```bash
-# Fork the repo on GitHub first, then clone your fork:
+# Fork the repo on GitHub, then clone your fork:
 git clone https://github.com/<your-username>/{repo}.git
 cd {repo}
 
-# Create and switch to a dedicated feature branch
+# Create a dedicated branch for this issue
 git checkout -b fix-issue-{selected_issue['number']}
-
-# Install dependencies (see project README)
 ```
 
 #### 2. Make Your Fix & Test
@@ -524,20 +584,133 @@ git push origin fix-issue-{selected_issue['number']}
 ```
 
 #### 4. Pull Request Template:
-- **Title:** `fix: resolve issue #{selected_issue['number']}`
+- **Title:** `fix: resolve #{selected_issue['number']} - {selected_issue['title']}`
 - **Description:**
   > Closes #{selected_issue['number']}
   >
-  > ### Changes Made
-  > - Fixed {selected_issue['title']}
-  > - Added/updated tests where applicable
+  > ### Summary of Changes
+  > - Addressed {selected_issue['title']}
+  > - Verified tests locally
 """
-                else:
-                    pr_plan = ask_llm(
-                        prompt=pr_prompt,
-                        model=active_model,
-                        base_url=ui_base_url,
-                        api_key=ui_do_key
-                    )
+                    else:
+                        pr_plan = ask_llm(
+                            prompt=pr_prompt,
+                            model=active_model,
+                            base_url=ui_base_url,
+                            api_key=ui_do_key
+                        )
 
-                st.markdown(pr_plan)
+                    st.markdown(pr_plan)
+        else:
+            st.info("No open 'good first issue' tickets found in this repo right now. Check the main Issues tab on GitHub!")
+
+    # ------------------------------------------
+    # TAB 3: Interactive Q&A (Ask RepoGuide AI)
+    # ------------------------------------------
+    with tab_chat:
+        st.subheader("💬 Ask RepoGuide AI")
+        st.caption(f"Have questions about `{info.get('full_name')}`? Ask about code structure, configuration, running tests, or architecture in {lang}!")
+
+        if "repo_chat_history" not in st.session_state:
+            st.session_state["repo_chat_history"] = []
+
+        # Display conversation history
+        for msg in st.session_state["repo_chat_history"]:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+        # Chat Input
+        user_question = st.chat_input(f"Ask a question about {info.get('name', 'this repo')}...")
+        if user_question:
+            st.session_state["repo_chat_history"].append({"role": "user", "content": user_question})
+            with st.chat_message("user"):
+                st.markdown(user_question)
+
+            chat_prompt = f"""You are a helpful open-source mentor answering a beginner's question about this repository.
+Repository: {info.get('full_name')}
+Description: {info.get('description')}
+Main Language: {info.get('language')}
+
+README excerpt:
+{readme[:4000]}
+
+Available file paths (truncated):
+{chr(10).join(paths[:200])}
+
+User question: {user_question}
+Answer clearly, concisely, and warmly in {lang}. Ground your answer strictly in the real files and documentation."""
+
+            with st.chat_message("assistant"):
+                with st.spinner("Consulting DigitalOcean AI..."):
+                    if demo_mode or not ui_do_key:
+                        ai_reply = f"Based on `{info.get('full_name')}`, you can check the README and the main `{info.get('language', 'source')}` files. Make sure to check the configuration and test folders for examples!"
+                    else:
+                        ai_reply = ask_llm(chat_prompt, model=active_model, base_url=ui_base_url, api_key=ui_do_key)
+                    st.markdown(ai_reply)
+                    st.session_state["repo_chat_history"].append({"role": "assistant", "content": ai_reply})
+
+    # ------------------------------------------
+    # TAB 4: File Tree & Architecture Explorer
+    # ------------------------------------------
+    with tab_tree:
+        st.subheader("🌳 File Tree & Architecture Categorization")
+        st.caption(f"Browse key files across {len(paths)} detected source paths.")
+        
+        categories = classify_file_tree(paths)
+        col_c1, col_c2 = st.columns(2)
+
+        with col_c1:
+            with st.expander(f"🐍 Source & Logic ({len(categories['Source & Logic'])})", expanded=True):
+                for p in categories['Source & Logic'][:30]:
+                    st.markdown(f"- `{p}`")
+                if len(categories['Source & Logic']) > 30:
+                    st.caption(f"...and {len(categories['Source & Logic']) - 30} more source files.")
+
+            with st.expander(f"⚙️ Configuration & Build ({len(categories['Configuration & Build'])})", expanded=True):
+                for p in categories['Configuration & Build']:
+                    st.markdown(f"- `{p}`")
+
+        with col_c2:
+            with st.expander(f"🧪 Tests & Quality ({len(categories['Tests & Quality'])})", expanded=True):
+                for p in categories['Tests & Quality'][:25]:
+                    st.markdown(f"- `{p}`")
+                if len(categories['Tests & Quality']) > 25:
+                    st.caption(f"...and {len(categories['Tests & Quality']) - 25} more test files.")
+
+            with st.expander(f"📚 Documentation & Community ({len(categories['Documentation & Community'])})", expanded=True):
+                for p in categories['Documentation & Community']:
+                    st.markdown(f"- `{p}`")
+
+    # ------------------------------------------
+    # TAB 5: Pre-PR Checklist & Git Guide
+    # ------------------------------------------
+    with tab_checklist:
+        st.subheader("✅ Open-Source Contribution Pre-Flight Checklist")
+        st.caption("Check these off before opening your Pull Request to ensure maintainers love your contribution!")
+
+        c1 = st.checkbox("1. Did you fork the repo and create a new feature branch? (Never commit directly to main)", value=False)
+        c2 = st.checkbox("2. Did you pull the latest upstream changes before starting? (`git pull upstream main`)", value=False)
+        c3 = st.checkbox("3. Did you follow code formatting and style guidelines? (Check contributing guide)", value=False)
+        c4 = st.checkbox("4. Did you run the existing test suite and verify all tests pass?", value=False)
+        c5 = st.checkbox("5. Did you write or update tests for your fix/feature?", value=False)
+        c6 = st.checkbox("6. Did you link the issue in your PR body (`Closes #<issue_number>`)?", value=False)
+
+        score = sum([c1, c2, c3, c4, c5, c6])
+        st.progress(score / 6)
+        if score == 6:
+            st.success("🎉 You are 100% ready to submit your Pull Request!")
+        else:
+            st.info(f"Progress: {score}/6 items completed.")
+
+        st.markdown("---")
+        st.subheader("📜 Beginner Git Command Reference")
+        st.markdown("""
+        | Step | Command | Explanation |
+        | :--- | :--- | :--- |
+        | **Fork & Clone** | `git clone https://github.com/<your-user>/<repo>.git` | Apna local copy banana |
+        | **New Branch** | `git checkout -b fix-my-issue` | Naya isolated branch create karna |
+        | **Check Status** | `git status` | Konsi files change hui hain check karna |
+        | **Stage Changes** | `git add .` | Modified files ko commit ke liye ready karna |
+        | **Commit** | `git commit -m "fix: your clear message"` | Changes ko save karna |
+        | **Push** | `git push origin fix-my-issue` | GitHub pe apna branch upload karna |
+        """)
