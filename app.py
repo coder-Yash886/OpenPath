@@ -283,6 +283,435 @@ A bird's-eye architectural map of where components live:
 ## Where to start contributing
 {contrib_text}"""
 
+def audit_readme(readme, paths):
+    """Analyze README completeness, score it, and identify missing sections."""
+    if not readme or len(readme.strip()) < 40:
+        return {
+            "exists": False,
+            "score": 10,
+            "length": len(readme) if readme else 0,
+            "present": ["Basic Source Code Files"],
+            "missing": [
+                "Problem Statement",
+                "Solution & Value Proposition",
+                "Features List",
+                "System Architecture Diagram",
+                "Tech Stack Breakdown",
+                "Local Setup & Quickstart",
+                "Deployment Strategy (DigitalOcean / Docker)",
+                "Contributing Guidelines",
+                "License & Badges"
+            ]
+        }
+    
+    low = readme.lower()
+    score = 20
+    present = ["README.md File Detected"]
+    missing = []
+    
+    checks = [
+        ("Problem Statement & Overview", any(w in low for w in ["problem", "overview", "about", "why", "motivation", "background"]), 10),
+        ("Features Breakdown", any(w in low for w in ["feature", "capabilities", "what it does", "highlights"]), 15),
+        ("Quickstart & Installation", any(w in low for w in ["install", "setup", "quickstart", "getting started", "run locally", "usage"]), 20),
+        ("System Architecture & Diagram", any(w in low for w in ["architecture", "system design", "workflow", "diagram", "mermaid", "flowchart"]), 15),
+        ("Tech Stack Details", any(w in low for w in ["tech stack", "dependencies", "built with", "technologies", "prerequisites"]), 10),
+        ("Deployment Strategy", any(w in low for w in ["deploy", "docker", "production", "hosting", "digitalocean", "app platform"]), 10),
+        ("Contributing Guidelines", any(w in low for w in ["contribut", "pull request", "pr guidelines", "how to contribute"]), 10),
+        ("Badges & License", any(w in low for w in ["license", "badge", "shields.io", "mit license"]), 10),
+    ]
+    
+    for name, found, weight in checks:
+        if found:
+            score += weight
+            present.append(name)
+        else:
+            missing.append(name)
+            
+    score = min(100, score)
+    return {
+        "exists": True,
+        "score": score,
+        "length": len(readme),
+        "present": present,
+        "missing": missing
+    }
+
+def generate_smart_deep_architecture(info, readme, paths, issues, lang):
+    """Generate comprehensive architecture, system design, problem statement, solution, userflow, and deployment plan."""
+    repo_name = info.get('name', 'Project')
+    full_name = info.get('full_name', repo_name)
+    desc = info.get('description') or f"Open-source modular software project built with {info.get('language', 'modern technologies')}."
+    lang_name = info.get('language') or 'General'
+    
+    tree_categories = classify_file_tree(paths)
+    source_files = tree_categories["Source & Logic"]
+    config_files = tree_categories["Configuration & Build"]
+    test_files = tree_categories["Tests & Quality"]
+    
+    # Infer entry point and key modules
+    entry_point = "main.py"
+    if any(p.lower().endswith(("app.py", "main.py", "index.js", "index.ts", "server.js", "main.go")) for p in source_files):
+        entry_point = next(p for p in source_files if p.lower().endswith(("app.py", "main.py", "index.js", "index.ts", "server.js", "main.go")))
+    elif source_files:
+        entry_point = source_files[0]
+        
+    # Framework detection
+    framework = "Custom Engine"
+    lower_paths = [p.lower() for p in paths]
+    if any("fastapi" in p for p in lower_paths) or any("fastapi" in readme.lower() for _ in [1]):
+        framework = "FastAPI (High-performance Async Python)"
+    elif any("flask" in p for p in lower_paths) or any("flask" in readme.lower() for _ in [1]):
+        framework = "Flask (WSGI Web Microframework)"
+    elif any("streamlit" in p for p in lower_paths) or any("streamlit" in readme.lower() for _ in [1]):
+        framework = "Streamlit (Modern Interactive Web Application)"
+    elif any("react" in p for p in lower_paths) or any("next" in p for p in lower_paths):
+        framework = "React / Next.js (Modern Frontend Framework)"
+    elif any("docker" in p for p in lower_paths):
+        framework = f"Containerized {lang_name} Engine"
+    else:
+        framework = f"{lang_name} Modular Architecture"
+
+    # Problem & Solution
+    if lang == "Hinglish":
+        problem_text = f"Developers aur users ko **{desc}** accomplish karne mein manual effort, complex configuration, aur unstandardized workflows ka saamna karna padta tha. Bina kisi dedicated modular pipeline ke, codebase maintain karna aur efficiently scale karna challenging hota hai."
+        solution_text = f"**{repo_name}** ek structured, lightweight aur developer-friendly architecture provide karta hai. Yeh **{lang_name}** aur modern design patterns use karke task execution ko automate karta hai, modular components ke zariye code maintainability badhata hai aur reproducible execution ensure karta hai."
+        userflow_text = f"1. **User Request / CLI Trigger**: User CLI ya web interface ke zariye command initiate karta hai.\n2. **Configuration Loader**: System `{config_files[0] if config_files else 'environment config'}` se variables aur dependencies load karta hai.\n3. **Core Processing**: `{entry_point}` routing logic trigger karke request relevant module ko dispatch karta hai.\n4. **Execution & Validation**: Core functions task execute karte hain aur automated tests (`{test_files[0] if test_files else 'test suite'}`) validation provide karte hain.\n5. **Response Delivery**: Client ko final processed data, UI state ya output return hota hai."
+    elif lang == "Hindi":
+        problem_text = f"डेवलपर्स को **{desc}** के लिए जटिल कॉन्फ़िगरेशन और मैन्युअल सेटअप की आवश्यकता होती थी, जिससे समय और रिसोर्सेज नष्ट होते थे।"
+        solution_text = f"**{repo_name}** इस समस्या को हल करने के लिए **{lang_name}** आधारित एक आधुनिक, मॉड्यूलर और उच्च-प्रदर्शन समाधान प्रस्तुत करता है।"
+        userflow_text = f"1. **इनपुट**: डेवलपर या यूज़र सिस्टम में कमांड या रिक्वेस्ट भेजता है।\n2. **कॉन्फ़िगरेशन**: आवश्यक सेटिंग्स और डिपेंडेंसी लोड की जाती हैं।\n3. **प्रोसेसिंग**: `{entry_point}` द्वारा अनुरोध को संबंधित मॉड्यूल में प्रोसेस किया जाता है।\n4. **आउटपुट**: परिणाम सुरक्षित और तेजी से डिलीवर किया जाता है।"
+    else:
+        problem_text = f"Software teams and users attempting to address **{desc}** frequently face boilerplate overhead, non-standardized workflows, and maintenance friction. Scaling or onboarding without clear architectural boundaries leads to fragility and operational bottlenecks."
+        solution_text = f"**{repo_name}** delivers a clean, decoupled solution engineered in **{lang_name}**. By organizing logic into distinct modular boundaries, it abstracts complexity, ensures deterministic runtime execution, and enables straightforward extensibility."
+        userflow_text = f"1. **Client / User Initiation**: Developer or end-user triggers an execution or API call.\n2. **Environment & Dependency Bootstrap**: Configuration layers validate environment credentials and active runtime flags.\n3. **Execution Pipeline**: Request is handled via `{entry_point}`, orchestrating domain logic across internal modules.\n4. **Testing & Quality Assurance**: Verification hooks and test fixtures validate runtime stability.\n5. **Output / Response**: The processed result or user interface state is presented to the caller."
+
+    # Build valid Mermaid Diagram
+    mermaid_code = f"""graph TD
+    User([👤 User / Client]) --> Entry["🚪 Entrypoint: {entry_point}"]
+    Entry --> CoreRouter["🔀 Core Router & Controller"]
+    CoreRouter --> ModuleLogic["📦 Domain Logic & Services"]
+    CoreRouter --> Config["⚙️ Config & Env: {config_files[0] if config_files else 'Settings'}"]
+    ModuleLogic --> Tests["🧪 Verification: {test_files[0] if test_files else 'Unit Tests'}"]
+    ModuleLogic --> Output[📑 Output / State Response]
+    Output --> User
+    
+    style User fill:#ECFDF5,stroke:#10B981,stroke-width:2px;
+    style Entry fill:#FFFFFF,stroke:#E2E8F0,stroke-width:1.5px;
+    style CoreRouter fill:#EFF6FF,stroke:#3B82F6,stroke-width:1.5px;
+    style ModuleLogic fill:#F0FDF4,stroke:#16A34A,stroke-width:1.5px;
+    style Output fill:#FAF5FF,stroke:#9333EA,stroke-width:1.5px;"""
+
+    features_list = [
+        f"**Modular Architecture**: Clean separation between `{entry_point}` and functional subpackages.",
+        f"**Zero-Bloat Configuration**: Streamlined environment loading with `{config_files[0] if config_files else 'standard configs'}`.",
+        f"**Automated Verification**: Integrated test suites (`{len(test_files)}` test paths detected) guaranteeing regression prevention.",
+        f"**Modern {lang_name} Standards**: Leverages modern idioms and fast execution conventions.",
+        "**Cloud Native Ready**: Container-friendly structure designed for instant deployment on cloud app platforms."
+    ]
+    features_formatted = "\n".join(f"- {f}" for f in features_list)
+
+    return f"""## 🎯 Problem Statement It Solves
+{problem_text}
+
+---
+
+## 💡 Proposed Solution & Value Proposition
+{solution_text}
+
+---
+
+## ✨ Key Features & Capabilities
+{features_formatted}
+
+---
+
+## 🏗️ System Design & Modular Hierarchy
+The repository follows a clean, decoupled architectural pattern:
+- **Presentation / Interface Layer**: Handles input parameters, CLI flags, or web endpoints (`{entry_point}`).
+- **Domain & Business Logic**: Encapsulates core processing algorithms ({len(source_files)} source files detected).
+- **Configuration & Infrastructure**: Centralizes environment variables, build definitions, and secrets (`{', '.join(config_files[:3]) if config_files else 'Standard env'}`).
+- **Quality Assurance Layer**: Provides unit tests and regression fixtures ({len(test_files)} test files detected).
+
+---
+
+## 📊 System Architecture Diagram
+```mermaid
+{mermaid_code}
+```
+
+---
+
+## 🛠️ Technology Stack Breakdown
+| Component | Detected Technology | Role in System |
+| :--- | :--- | :--- |
+| **Primary Language** | `{lang_name}` | Core computational logic |
+| **Framework / Pattern** | `{framework}` | Application lifecycle & routing |
+| **Build & Dependencies** | `{config_files[0] if config_files else 'Standard packaging'}` | Dependency resolution |
+| **Testing Suite** | `{test_files[0] if test_files else 'Built-in tests'}` | Verification & stability |
+| **Deployment Engine** | `DigitalOcean App Platform / Docker` | Production hosting & scaling |
+
+---
+
+## 🔄 Runtime Workflow & Userflow
+{userflow_text}
+
+---
+
+## 🚀 Deployment Strategy & Hosting Recommendations
+### Recommended Platform: **DigitalOcean App Platform**
+1. **Repository Link**: Connect `https://github.com/{full_name}` to DigitalOcean App Platform.
+2. **Component Type**: Web Service / Worker.
+3. **Environment Variables**: Add all configuration variables present in `{config_files[0] if config_files else '.env'}`.
+4. **Port Configuration**: Expose port `8080` (or `8000` / `3000` depending on your entry point).
+5. **Auto Deploy**: Enable *Deploy on Push* so every commit to `main` automatically triggers zero-downtime rolling deploys.
+
+---
+
+## 💡 Maintainer Suggestions & Scaling Opportunities
+1. **CI/CD Automation**: Add a `.github/workflows/ci.yml` pipeline to run tests automatically on every Pull Request.
+2. **Docker Multi-Stage Build**: If deploying as a container, use a multi-stage Dockerfile to minimize image size and improve cold starts.
+3. **Caching Layer**: For intensive endpoints, integrate Redis or in-memory LRU caching.
+4. **API Documentation**: Ensure all functions have typed signatures and auto-generated OpenAPI / docstrings.
+"""
+
+def generate_smart_readme(info, readme, paths, issues, lang):
+    """Generate a 100% production-ready GitHub README.md complete with badges, architecture, and guides."""
+    repo_name = info.get('name', 'Project')
+    full_name = info.get('full_name', repo_name)
+    desc = info.get('description') or f"A modern open-source project built with {info.get('language', 'software engineering best practices')}."
+    lang_name = info.get('language') or 'General'
+    branch = info.get('default_branch', 'main')
+    
+    tree_categories = classify_file_tree(paths)
+    source_files = tree_categories["Source & Logic"]
+    config_files = tree_categories["Configuration & Build"]
+    test_files = tree_categories["Tests & Quality"]
+    
+    entry_point = "main.py"
+    if any(p.lower().endswith(("app.py", "main.py", "index.js", "index.ts", "server.js")) for p in source_files):
+        entry_point = next(p for p in source_files if p.lower().endswith(("app.py", "main.py", "index.js", "index.ts", "server.js")))
+    elif source_files:
+        entry_point = source_files[0]
+
+    # Generate setup commands
+    if "python" in lang_name.lower():
+        install_cmd = "python -m venv venv\nsource venv/bin/activate  # On Windows: venv\\Scripts\\activate\npip install -r requirements.txt"
+        run_cmd = f"python {entry_point}"
+    elif "javascript" in lang_name.lower() or "typescript" in lang_name.lower():
+        install_cmd = "npm install"
+        run_cmd = "npm run dev"
+    else:
+        install_cmd = "# Refer to build instructions for dependencies"
+        run_cmd = f"./{entry_point}"
+
+    mermaid_diagram = f"""graph TD
+    Client([👤 Client / User]) --> App["🚪 {entry_point}"]
+    App --> Core["⚙️ Core Domain Services"]
+    Core --> Config["📦 Config & Env"]
+    Core --> Tests["🧪 Automated Tests"]
+    Core --> Out([📑 Response / UI])"""
+
+    return f"""# {repo_name}
+
+> {desc}
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/{full_name}?style=flat&color=10B981)](https://github.com/{full_name}/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/{full_name}?style=flat&color=0284C7)](https://github.com/{full_name}/network)
+[![Language: {lang_name}](https://img.shields.io/badge/Language-{lang_name}-8B5CF6.svg)](https://github.com/{full_name})
+[![DigitalOcean Ready](https://img.shields.io/badge/Deploy-DigitalOcean-0080FF.svg)](https://cloud.digitalocean.com/apps)
+
+---
+
+## 📌 Problem Statement
+Many developers and teams working on modern applications encounter friction with manual configuration, missing architectural guidelines, and boilerplate overhead. Without a robust modular framework, maintainability suffers and onboarding new contributors becomes slow and intimidating.
+
+## 💡 Solution
+**{repo_name}** provides a clean, battle-tested solution engineered in **{lang_name}**. It abstracts common setup tasks, enforces modular separation of concerns, and delivers high-performance, deterministic execution out of the box.
+
+---
+
+## ✨ Key Features
+- **⚡ High Performance**: Optimized execution pipeline built with modern `{lang_name}` conventions.
+- **🧱 Modular Architecture**: Clean boundaries separating entry point `{entry_point}`, domain modules, and settings.
+- **🧪 Comprehensive Testing**: Built-in test fixtures ({len(test_files)} test paths detected) to ensure zero regressions.
+- **🌐 Cloud-Native Deployment**: Pre-configured for frictionless deployment to DigitalOcean App Platform and Docker.
+- **🤝 Beginner-Friendly Onboarding**: Thoroughly documented with step-by-step contribution workflows.
+
+---
+
+## 🏗️ System Architecture & Workflow
+
+```mermaid
+{mermaid_diagram}
+```
+
+### 🔄 Runtime Workflow & User Journey
+1. **Input & Trigger**: User initiates an interaction via CLI or web endpoint.
+2. **Environment Bootstrap**: Settings and configuration files are loaded into the runtime.
+3. **Core Processing**: `{entry_point}` orchestrates domain logic across internal modules.
+4. **Validation & Output**: The result is verified and delivered seamlessly to the user.
+
+---
+
+## 🛠️ Technology Stack
+| Layer | Technology | Details |
+| :--- | :--- | :--- |
+| **Primary Language** | `{lang_name}` | Core language runtime |
+| **Main Entrypoint** | `{entry_point}` | Application entry & routing |
+| **Dependencies & Build** | `{config_files[0] if config_files else 'Standard packaging'}` | Package specification |
+| **Test Framework** | `{test_files[0] if test_files else 'Unit tests'}` | Regression validation |
+| **Recommended Hosting** | `DigitalOcean App Platform` | Serverless / Container PaaS |
+
+---
+
+## 🚀 Quickstart & Local Setup
+
+### 1. Prerequisites
+- `{lang_name}` installed on your local machine.
+- `git` version control tool.
+
+### 2. Clone the Repository
+```bash
+git clone https://github.com/{full_name}.git
+cd {repo_name}
+```
+
+### 3. Install Dependencies
+```bash
+{install_cmd}
+```
+
+### 4. Run the Project
+```bash
+{run_cmd}
+```
+
+---
+
+## 🌐 Production Deployment
+
+### Deploy to DigitalOcean App Platform
+1. Fork or push your changes to GitHub.
+2. Log in to [DigitalOcean Cloud](https://cloud.digitalocean.com/apps) and click **Create App**.
+3. Select your GitHub repository: `{full_name}` (Branch: `{branch}`).
+4. DigitalOcean automatically detects the `{lang_name}` buildpack.
+5. Set your Run Command to `{run_cmd}` and configure HTTP Port (`8080`).
+6. Click **Deploy** to launch with automatic SSL and zero-downtime rolling deploys!
+
+---
+
+## 🤝 Contributing
+Contributions are what make open source an amazing place to learn and build!
+1. Fork the Project (`https://github.com/{full_name}/fork`)
+2. Create your Feature Branch (`git checkout -b feat/amazing-feature`)
+3. Commit your Changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the Branch (`git push origin feat/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📜 License
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+*Created with [RepoGuide](https://github.com/coder-Yash886/OpenPath) — Powered by DigitalOcean Gradient AI.*
+"""
+
+def generate_deep_architecture(info, readme, paths, issues, lang, api_key=None, model=None, base_url=None):
+    """Generate deep architecture using DigitalOcean Gradient AI, falling back to smart engine."""
+    if not api_key:
+        return generate_smart_deep_architecture(info, readme, paths, issues, lang)
+    
+    prompt = f"""You are a senior software architect and open-source mentor.
+Analyze this GitHub repository deeply and provide an architectural deep-dive in {lang}.
+
+Repo: {info.get('full_name')}
+Description: {info.get('description')}
+Language: {info.get('language')}
+
+README excerpt:
+{readme[:4000]}
+
+Files list (sample 150):
+{chr(10).join(paths[:150])}
+
+Output exact Markdown sections:
+## 🎯 Problem Statement It Solves
+(Detailed explanation of the real-world problem, user pain points, and why this repo is needed)
+
+## 💡 Proposed Solution & Value Proposition
+(How this codebase solves the problem, core architecture decisions, and value)
+
+## ✨ Key Features & Capabilities
+(4-6 key technical and user features)
+
+## 🏗️ System Design & Modular Hierarchy
+(Component hierarchy, layers, and how files interact)
+
+## 📊 System Architecture Diagram
+(Provide a clean, valid Mermaid graph TD diagram depicting components, entry point, data flow, and user)
+
+## 🛠️ Technology Stack Breakdown
+(Table of languages, frameworks, build tools, tests, and deployment)
+
+## 🔄 Runtime Workflow & Userflow
+(Step-by-step execution flow from user input to output)
+
+## 🚀 Deployment Strategy & Hosting Recommendations
+(Instructions for deploying on DigitalOcean App Platform or Docker container)
+
+## 💡 Maintainer Suggestions & Scaling Opportunities
+(3-5 concrete technical suggestions for scaling, security, caching, CI/CD)
+"""
+    try:
+        reply = ask_llm(prompt, model=model, base_url=base_url, api_key=api_key)
+        if reply and len(reply.strip()) > 100:
+            return reply
+    except Exception:
+        pass
+    return generate_smart_deep_architecture(info, readme, paths, issues, lang)
+
+def generate_production_readme(info, readme, paths, issues, lang, api_key=None, model=None, base_url=None):
+    """Generate a production-grade README.md using DigitalOcean Gradient AI, falling back to smart engine."""
+    if not api_key:
+        return generate_smart_readme(info, readme, paths, issues, lang)
+        
+    prompt = f"""You are an elite open-source documentation engineer.
+Generate a complete, production-grade GitHub README.md for this repository.
+It should be ready to be committed directly as README.md in the root of the repository.
+
+Repo: {info.get('full_name')}
+Description: {info.get('description')}
+Language: {info.get('language')}
+
+README excerpt (if any):
+{readme[:3000]}
+
+Files in repo:
+{chr(10).join(paths[:150])}
+
+Include:
+- Title, badges, and tagline
+- 📌 Problem Statement
+- 💡 Solution & Highlights
+- ✨ Core Features
+- 🏗️ System Architecture & Mermaid Diagram (graph TD)
+- 🔄 Runtime Workflow & User Journey
+- 🛠️ Tech Stack Table
+- 🚀 Quickstart & Local Setup commands
+- 🌐 Deployment Guide (DigitalOcean App Platform & Docker)
+- 🤝 Contributing Guidelines & Git Flow
+- 📜 License (MIT)
+"""
+    try:
+        reply = ask_llm(prompt, model=model, base_url=base_url, api_key=api_key)
+        if reply and len(reply.strip()) > 100:
+            return reply
+    except Exception:
+        pass
+    return generate_smart_readme(info, readme, paths, issues, lang)
+
 # ==========================================
 # Streamlit UI Configuration
 # ==========================================
@@ -1017,12 +1446,44 @@ Do not invent files that are not in the file list."""
                     st.warning(f"⚠️ DigitalOcean Cloud Inference notice: {llm_err}. Using Smart Analyzer fallback.")
                     answer = generate_smart_guide(info, readme, paths, issues, demo_lang)
                     st.session_state["is_cloud_ai"] = False
+
+                with st.spinner("🏗️ Generating Deep System Design & Architecture Analysis..."):
+                    arch_content = generate_deep_architecture(
+                        info=info,
+                        readme=readme,
+                        paths=paths,
+                        issues=issues,
+                        lang=demo_lang,
+                        api_key=active_key if st.session_state.get("is_cloud_ai", False) else None,
+                        model=model_to_use,
+                        base_url=base_url_to_use
+                    )
+
+                with st.spinner("📝 Generating Production-Grade README.md..."):
+                    prod_readme = generate_production_readme(
+                        info=info,
+                        readme=readme,
+                        paths=paths,
+                        issues=issues,
+                        lang=demo_lang,
+                        api_key=active_key if st.session_state.get("is_cloud_ai", False) else None,
+                        model=model_to_use,
+                        base_url=base_url_to_use
+                    )
         else:
             with st.spinner("⚡ Analyzing codebase via RepoGuide Smart Engine..."):
                 answer = generate_smart_guide(info, readme, paths, issues, demo_lang)
+                arch_content = generate_smart_deep_architecture(info, readme, paths, issues, demo_lang)
+                prod_readme = generate_smart_readme(info, readme, paths, issues, demo_lang)
                 st.session_state["is_cloud_ai"] = False
 
+        # Run README Health Audit
+        readme_audit = audit_readme(readme, paths)
+
         st.session_state["current_guide"] = answer
+        st.session_state["current_arch"] = arch_content
+        st.session_state["current_readme_audit"] = readme_audit
+        st.session_state["current_generated_readme"] = prod_readme
 
     except ValueError as ve:
         st.warning(f"⚠️ {ve}")
@@ -1043,34 +1504,74 @@ if "current_guide" in st.session_state and st.session_state["current_guide"]:
     lang = st.session_state.get("current_lang", "English")
     is_cloud_ai = st.session_state.get("is_cloud_ai", False)
 
-    st.markdown("<hr style='margin: 1.5rem 0 1.2rem 0; border: none; border-top: 1px solid #E2E8F0;'>", unsafe_allow_html=True)
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
     mode_text = "🌊 DigitalOcean Gradient AI" if is_cloud_ai else "⚡ RepoGuide Smart Analyzer"
-    
+    readme_audit = st.session_state.get("current_readme_audit", {})
+    audit_score = readme_audit.get("score", 0)
+    audit_exists = readme_audit.get("exists", False)
+    audit_present = readme_audit.get("present", [])
+    audit_missing = readme_audit.get("missing", [])
+
+    # Score color
+    if audit_score >= 80:
+        score_color = "#10B981"
+        score_label = "Excellent"
+        score_bg = "#ECFDF5"
+        score_border = "#A7F3D0"
+    elif audit_score >= 55:
+        score_color = "#F59E0B"
+        score_label = "Needs Work"
+        score_bg = "#FFFBEB"
+        score_border = "#FDE68A"
+    else:
+        score_color = "#EF4444"
+        score_label = "Poor"
+        score_bg = "#FEF2F2"
+        score_border = "#FECACA"
+
+    present_html = "".join([f'<span style="background:#ECFDF5;color:#059669;border:1px solid #A7F3D0;padding:3px 10px;border-radius:6px;font-size:0.8rem;font-weight:600;">✓ {p}</span>' for p in audit_present])
+    missing_html = "".join([f'<span style="background:#FEF2F2;color:#EF4444;border:1px solid #FECACA;padding:3px 10px;border-radius:6px;font-size:0.8rem;font-weight:600;">✗ {m}</span>' for m in audit_missing])
+
     st.markdown(f"""
-    <div class="white-card">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
-            <div>
-                <h2 style="margin: 0 0 6px 0; color: #0F172A; font-size: 1.65rem; font-weight: 800;">{info.get('full_name')}</h2>
-                <p style="margin: 0 0 14px 0; color: #475569; font-size: 0.98rem;">{info.get('description') or 'No description provided.'}</p>
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:20px;padding:24px 28px;margin-bottom:18px;box-shadow:0 4px 20px rgba(0,0,0,0.04);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:18px;">
+            <div style="flex:1;min-width:280px;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                    <span style="font-size:1.7rem;font-weight:800;color:#0F172A;letter-spacing:-0.02em;">{info.get('full_name')}</span>
+                </div>
+                <p style="margin:0 0 14px 0;color:#475569;font-size:0.98rem;line-height:1.5;">{info.get('description') or 'No description provided.'}</p>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">💻 {info.get('language') or 'General'}</span>
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">⭐ {info.get('stargazers_count', 0):,} stars</span>
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">🍴 {info.get('forks_count', 0):,} forks</span>
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">🌿 {info.get('default_branch', 'main')}</span>
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">📄 {len(paths):,} files</span>
+                    <span style="background:#F1F5F9;padding:5px 12px;border-radius:8px;font-size:0.84rem;font-weight:600;color:#334155;">🎯 {len(issues)} good-first-issues</span>
+                </div>
             </div>
-            <div style="background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; padding: 5px 14px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700;">{mode_text}</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                <div style="background:{score_bg};border:2px solid {score_border};border-radius:16px;padding:14px 22px;text-align:center;min-width:120px;">
+                    <div style="font-size:2.2rem;font-weight:800;color:{score_color};line-height:1;">{audit_score}</div>
+                    <div style="font-size:0.75rem;font-weight:700;color:{score_color};text-transform:uppercase;letter-spacing:0.06em;">README Score</div>
+                    <div style="font-size:0.72rem;color:#64748B;margin-top:2px;">{score_label}</div>
+                </div>
+                <div style="background:#ECFDF5;color:#059669;border:1px solid #A7F3D0;padding:5px 14px;border-radius:9999px;font-size:0.8rem;font-weight:700;">{mode_text}</div>
+            </div>
         </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">💻 {info.get('language') or 'General'}</span>
-            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">⭐ {info.get('stargazers_count', 0):,} stars</span>
-            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">🍴 {info.get('forks_count', 0):,} forks</span>
-            <span style="background: #F1F5F9; padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; color: #334155;">🌿 {info.get('default_branch', 'main')}</span>
-        </div>
+        {'<div style="margin-bottom:10px;"><div style="font-size:0.8rem;font-weight:700;color:#0F172A;margin-bottom:8px;">✅ README Sections Found:</div><div style="display:flex;flex-wrap:wrap;gap:6px;">' + present_html + '</div></div>' if audit_present else ''}
+        {'<div><div style="font-size:0.8rem;font-weight:700;color:#EF4444;margin-bottom:8px;">⚠️ Missing Sections (Tab 7 generates these automatically):</div><div style="display:flex;flex-wrap:wrap;gap:6px;">' + missing_html + '</div></div>' if audit_missing else ''}
     </div>
     """, unsafe_allow_html=True)
 
-    tab_guide, tab_issues, tab_chat, tab_tree, tab_checklist = st.tabs([
+    tab_guide, tab_issues, tab_chat, tab_arch, tab_tree, tab_checklist, tab_readme = st.tabs([
         "🧭 Beginner Guide",
         "🎯 Good First Issues & PR",
         "💬 Ask RepoGuide AI",
-        "🌳 Architecture & Files",
-        "✅ Pre-PR Checklist"
+        "🏗️ Deep Analysis",
+        "🌳 File Architecture",
+        "✅ Pre-PR Checklist",
+        "📝 Generate README"
     ])
 
     with tab_guide:
@@ -1221,10 +1722,25 @@ Answer clearly and warmly in {lang}."""
                     st.markdown(ai_reply)
                     st.session_state["repo_chat_history"].append({"role": "assistant", "content": ai_reply})
 
+    with tab_arch:
+        arch_content = st.session_state.get("current_arch", "")
+        if arch_content:
+            st.markdown(arch_content)
+            st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+            st.download_button(
+                label="📥 Download Deep Analysis (.md)",
+                data=arch_content,
+                file_name=f"{owner}_{repo}_deep_analysis.md",
+                mime="text/markdown",
+                key="btn_download_arch"
+            )
+        else:
+            st.info("Run the analyzer above to generate a deep architecture analysis.")
+
     with tab_tree:
         st.subheader("🌳 File Tree & Architecture Categorization")
         st.caption(f"Browse key files across {len(paths)} detected source paths.")
-        
+
         categories = classify_file_tree(paths)
         col_c1, col_c2 = st.columns(2)
 
@@ -1261,12 +1777,12 @@ Answer clearly and warmly in {lang}."""
         c5 = st.checkbox("5. Did you write or update tests for your fix/feature?", value=False, key="live_chk_5")
         c6 = st.checkbox("6. Did you link the issue in your PR body (`Closes #<issue_number>`)?", value=False, key="live_chk_6")
 
-        score = sum([c1, c2, c3, c4, c5, c6])
-        st.progress(score / 6)
-        if score == 6:
+        pr_score = sum([c1, c2, c3, c4, c5, c6])
+        st.progress(pr_score / 6)
+        if pr_score == 6:
             st.success("🎉 You are 100% ready to submit your Pull Request!")
         else:
-            st.info(f"Progress: {score}/6 items completed.")
+            st.info(f"Progress: {pr_score}/6 items completed.")
 
         st.markdown("<hr style='margin: 1.5rem 0 1rem 0; border: none; border-top: 1px solid #E2E8F0;'>", unsafe_allow_html=True)
         st.subheader("📜 Beginner Git Command Reference")
@@ -1280,6 +1796,54 @@ Answer clearly and warmly in {lang}."""
         | **Commit** | `git commit -m "fix: your clear message"` | Changes ko save karna |
         | **Push** | `git push origin fix-my-issue` | GitHub pe apna branch upload karna |
         """)
+
+    with tab_readme:
+        prod_readme = st.session_state.get("current_generated_readme", "")
+        readme_audit_data = st.session_state.get("current_readme_audit", {})
+        r_score = readme_audit_data.get("score", 0)
+        r_exists = readme_audit_data.get("exists", False)
+        r_missing = readme_audit_data.get("missing", [])
+
+        if r_score < 100 and r_missing:
+            missing_list = ", ".join(r_missing)
+            if not r_exists:
+                st.markdown(f"""
+                <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:14px;padding:18px 22px;margin-bottom:20px;">
+                    <div style="font-size:1.05rem;font-weight:800;color:#DC2626;margin-bottom:6px;">⚠️ No README.md detected in this repository!</div>
+                    <p style="color:#7F1D1D;font-size:0.92rem;margin:0;">RepoGuide has generated a complete, production-grade README.md below. Copy it to your repo root to improve discoverability and contributor experience.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:14px;padding:18px 22px;margin-bottom:20px;">
+                    <div style="font-size:1.05rem;font-weight:800;color:#B45309;margin-bottom:6px;">📝 README Score: {r_score}/100 — Missing sections detected</div>
+                    <p style="color:#78350F;font-size:0.9rem;margin:0;">Missing: <strong>{missing_list}</strong>. RepoGuide has auto-generated an enhanced README below with all sections filled in.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+        if prod_readme:
+            col_dl1, col_dl2 = st.columns([1, 3])
+            with col_dl1:
+                st.download_button(
+                    label="📥 Download README.md",
+                    data=prod_readme,
+                    file_name="README.md",
+                    mime="text/markdown",
+                    key="btn_download_readme_prod",
+                    use_container_width=True
+                )
+            with col_dl2:
+                st.markdown("""
+                <div style="padding: 10px 0; color: #64748B; font-size: 0.88rem;">
+                    ⬅️ Click to download — then replace your repo's <code>README.md</code> and commit it!
+                </div>
+                """, unsafe_allow_html=True)
+
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+            with st.expander("📄 Preview Generated README.md", expanded=True):
+                st.markdown(prod_readme)
+        else:
+            st.info("Run the analyzer above to auto-generate a production-grade README.md for this repository.")
 
 # ==========================================
 # 3. CORE FEATURES SECTION (#features)

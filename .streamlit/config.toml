@@ -10,3 +10,4 @@ headless = true
 enableCORS = false
 enableXsrfProtection = false
 maxUploadSize = 50
+port = 8080
